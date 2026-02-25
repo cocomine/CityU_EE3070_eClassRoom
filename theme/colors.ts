@@ -76,11 +76,11 @@ const lightColors = {
 
 const darkColors = {
     // Base colors
-    background: '#000000',
+    background: '#171717',
     foreground: '#FFFFFF',
 
     // Card colors
-    card: '#1C1C1E',
+    card: '#424242',
     cardForeground: '#FFFFFF',
 
     // Popover colors
@@ -88,7 +88,7 @@ const darkColors = {
     popoverForeground: '#FFFFFF',
 
     // Primary colors
-    primary: '#e4e4e7',
+    primary: '#2f8dc8',
     primaryForeground: '#18181b',
 
     // Secondary colors
@@ -108,7 +108,7 @@ const darkColors = {
     destructiveForeground: '#FFFFFF',
 
     // Border and input - using alpha values for better blending
-    border: '#38383A',
+    border: '#cdcdd1',
     input: 'rgba(255, 255, 255, 0.15)',
     ring: '#71717a',
 
