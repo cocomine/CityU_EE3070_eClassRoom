@@ -2,13 +2,13 @@ import {View} from "@/components/ui/view";
 import {Text} from "@/components/ui/text";
 import {SafeAreaView} from "react-native-safe-area-context";
 import {Button} from "@/components/ui/button";
-import {StyleSheet, TouchableOpacity} from "react-native";
+import {StyleSheet, TextInputSubmitEditingEvent, TouchableOpacity} from "react-native";
 import {BottomSheet, useBottomSheet} from '@/components/ui/bottom-sheet';
 import {InputOTP} from "@/components/ui/input-otp";
 import {useCallback, useMemo, useState} from "react";
 import {useRouter} from "expo-router";
-import {useColor} from "@/hooks/useColor";
-import {useColorScheme} from "@/hooks/useColorScheme";
+import {Separator} from "@/components/ui/separator";
+import {Input} from "@/components/ui/input";
 
 const FakeCourse = [
     {id: '123456', title: 'EE1000'},
@@ -44,15 +44,59 @@ export default function Root() {
 
 function TeacherBottomSheet({isVisible, onClose}: { isVisible: boolean, onClose: () => void }) {
     const router = useRouter();
+    const createNewCourseBottomSheet = useBottomSheet();
+    const [courseList, setCourseList] = useState<typeof FakeCourse>(FakeCourse);
+    const [error, setError] = useState('');
 
+    // when user click a course, navigate to teacher page with course id and close the bottom sheet
     const onClick = useCallback((courseId: string) => {
         console.log('Selected:', courseId)
         router.navigate({pathname: '/teacher', params: {courseId}})
         onClose();
     }, [onClose, router])
 
+    // when user click create new course, navigate to create course page and close the bottom sheet
+    const onCreateNewCourse = useCallback(() => {
+        onClose();
+        setTimeout(createNewCourseBottomSheet.open, 400);
+    }, [createNewCourseBottomSheet, onClose])
+
+    // when user complete entering course name, create new course and navigate to teacher page with new course id and close the bottom sheet
+    const onCreateNewCourseComplete = useCallback(({nativeEvent}: TextInputSubmitEditingEvent) => {
+        console.log(nativeEvent.text)
+
+        // validate course name
+        if(!nativeEvent.text || nativeEvent.text.trim() === '') {
+            setError('Course name cannot be empty.')
+            return;
+        }
+
+        //todo: create new course with name nativeEvent.text and get course id
+        const courseId = '000000';
+        const success = true;
+
+        if (success) {
+            // course created successfully, navigate to teacher page with new course id
+            setCourseList(prev => [...prev, {id: courseId, title: nativeEvent.text}])
+            router.navigate({pathname: '/teacher', params: {courseId}})
+            createNewCourseBottomSheet.close()
+        } else {
+            // course creation failed, show error message
+            setError('Failed to create course. Please try again.')
+        }
+
+    }, [createNewCourseBottomSheet, router])
+
+    // when course name changes, clear error message
+    const onChangeText = useCallback(() => {
+        if (error) {
+            setError('');
+        }
+    }, [error])
+
+    // render course list, when course list changes, re-render the list
     const renderItem = useMemo(() => {
-        return FakeCourse.map((item) => (
+        return courseList.map((item) => (
             <TouchableOpacity
                 key={item.id}
                 style={{
@@ -70,23 +114,43 @@ function TeacherBottomSheet({isVisible, onClose}: { isVisible: boolean, onClose:
                 </Text>
             </TouchableOpacity>
         ));
-    }, [onClick]);
+    }, [onClick, courseList]);
 
     return (
-        <BottomSheet
-            isVisible={isVisible}
-            onClose={onClose}
-            title='Chose your course'
-            snapPoints={[0.6, 0.9]}
-        >
-            <View style={{paddingBottom: 100}}>
-                <Button>or Create new course</Button>
-                <View>
-                    {renderItem}
+        <>
+            <BottomSheet
+                isVisible={isVisible}
+                onClose={onClose}
+                title='Chose your course'
+                snapPoints={[0.6, 0.9]}
+            >
+                <View style={{paddingBottom: 100, gap: 10}}>
+                    <Button onPress={onCreateNewCourse}>or Create new course</Button>
+                    <Separator/>
+                    <View>
+                        {renderItem}
+                    </View>
                 </View>
-            </View>
-
-        </BottomSheet>
+            </BottomSheet>
+            <BottomSheet
+                isVisible={createNewCourseBottomSheet.isVisible}
+                onClose={createNewCourseBottomSheet.close}
+                title={'Create new course'}
+                snapPoints={[0.3]}
+            >
+                <View style={{gap: 12}}>
+                    <Text variant='body'>Enter course Name</Text>
+                    <Input
+                        variant='outline'
+                        error={error}
+                        placeholder={'EE3070'}
+                        enterKeyHint={'done'}
+                        onSubmitEditing={onCreateNewCourseComplete}
+                        onChange={onChangeText}
+                    />
+                </View>
+            </BottomSheet>
+        </>
     )
 }
 
@@ -95,6 +159,7 @@ function StudentBottomSheet({isVisible, onClose}: { isVisible: boolean, onClose:
     const [error, setError] = useState('');
     const router = useRouter();
 
+    // when course id changes, clear error message
     const onChangeText = useCallback((value: string) => {
         setCourseId(value);
         if (error) {
@@ -102,10 +167,12 @@ function StudentBottomSheet({isVisible, onClose}: { isVisible: boolean, onClose:
         }
     }, [error])
 
+    // when user complete entering course id, validate it and navigate to student page if valid
     const onComplete = useCallback<(value: string) => void>((value) => {
+        console.log('Entered course ID:', value)
+
         //todo: validate course id
-        console.debug('Entered course ID:', value)
-        const valid = false;
+        const valid = true;
 
         if (valid) {
             // course id is valid, navigate to student page

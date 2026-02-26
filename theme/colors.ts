@@ -32,9 +32,9 @@ const lightColors = {
     destructiveForeground: '#FFFFFF',
 
     // Border and input
-    border: '#77BEF0',
-    input: '#ccdfed',
-    ring: '#7a8a9a',
+    border: '#9b9b9c',
+    input: '#e4e4e7',
+    ring: '#a1a1aa',
 
     // Text colors
     text: '#000000',
@@ -80,11 +80,11 @@ const darkColors = {
     foreground: '#FFFFFF',
 
     // Card colors
-    card: '#424242',
+    card: '#1C1C1E',
     cardForeground: '#FFFFFF',
 
     // Popover colors
-    popover: '#424242',
+    popover: '#18181b',
     popoverForeground: '#FFFFFF',
 
     // Primary colors
@@ -108,9 +108,9 @@ const darkColors = {
     destructiveForeground: '#ffffff',
 
     // Border and input - using alpha values for better blending
-    border: '#77BEF0',
-    input: 'rgba(119,190,240,0.15)',
-    ring: '#4e5a61',
+    border: '#707073',
+    input: 'rgba(255, 255, 255, 0.15)',
+    ring: '#71717a',
 
     // Text colors
     text: '#FFFFFF',
