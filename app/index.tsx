@@ -7,6 +7,8 @@ import {BottomSheet, useBottomSheet} from '@/components/ui/bottom-sheet';
 import {InputOTP} from "@/components/ui/input-otp";
 import {useCallback, useMemo, useState} from "react";
 import {useRouter} from "expo-router";
+import {useColor} from "@/hooks/useColor";
+import {useColorScheme} from "@/hooks/useColorScheme";
 
 const FakeCourse = [
     {id: '123456', title: 'EE1000'},
@@ -25,7 +27,10 @@ export default function Root() {
     return (
         <SafeAreaView style={styles.container}>
             <View>
-                <Text variant={'title'}>Chose your role</Text>
+                <Text variant={'title'} style={[styles.heading]}>Welcome to eClassRoom</Text>
+            </View>
+            <View>
+                <Text variant={'subtitle'}>Chose your role</Text>
             </View>
             <View style={styles.buttonContainer}>
                 <Button onPress={studentBottomSheet.open}>I&#39;m student</Button>
@@ -87,12 +92,32 @@ function TeacherBottomSheet({isVisible, onClose}: { isVisible: boolean, onClose:
 
 function StudentBottomSheet({isVisible, onClose}: { isVisible: boolean, onClose: () => void }) {
     const [courseId, setCourseId] = useState('');
+    const [error, setError] = useState('');
     const router = useRouter();
 
+    const onChangeText = useCallback((value: string) => {
+        setCourseId(value);
+        if (error) {
+            setError('');
+        }
+    }, [error])
+
     const onComplete = useCallback<(value: string) => void>((value) => {
-        router.navigate({pathname: '/student', params: {courseId: value}})
-        setCourseId('')
-        onClose();
+        //todo: validate course id
+        console.debug('Entered course ID:', value)
+        const valid = false;
+
+        if (valid) {
+            // course id is valid, navigate to student page
+            router.navigate({pathname: '/student', params: {courseId: value}})
+            setCourseId('')
+            onClose();
+        } else {
+            // course id is invalid, show error message
+            setError('Invalid course code. Please try again.')
+            setCourseId('')
+        }
+
     }, [onClose, router])
 
     return (
@@ -106,7 +131,8 @@ function StudentBottomSheet({isVisible, onClose}: { isVisible: boolean, onClose:
                 <InputOTP
                     length={6}
                     value={courseId}
-                    onChangeText={setCourseId}
+                    error={error}
+                    onChangeText={onChangeText}
                     onComplete={onComplete}
                 />
             </View>
@@ -119,6 +145,12 @@ const styles = StyleSheet.create({
         flex: 1,
         alignItems: 'center',
         justifyContent: 'center',
+        gap: 10
+    },
+    heading: {
+        fontSize: 40,
+        fontWeight: 'bold',
+        marginBottom: 30
     },
     buttonContainer: {
         flexDirection: 'row',

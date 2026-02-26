@@ -4,16 +4,16 @@ const lightColors = {
     foreground: '#000000',
 
     // Card colors
-    card: '#F2F2F7',
+    card: '#aeaeaf',
     cardForeground: '#000000',
 
     // Popover colors
-    popover: '#F2F2F7',
+    popover: '#aeaeaf',
     popoverForeground: '#000000',
 
     // Primary colors
-    primary: '#18181b',
-    primaryForeground: '#FFFFFF',
+    primary: '#77BEF0',
+    primaryForeground: '#171c1e',
 
     // Secondary colors
     secondary: '#F2F2F7',
@@ -24,17 +24,17 @@ const lightColors = {
     mutedForeground: '#71717a',
 
     // Accent colors
-    accent: '#F2F2F7',
-    accentForeground: '#18181b',
+    accent: '#FFCB61',
+    accentForeground: '#27221e',
 
     // Destructive colors
     destructive: '#ef4444',
     destructiveForeground: '#FFFFFF',
 
     // Border and input
-    border: '#C6C6C8',
-    input: '#e4e4e7',
-    ring: '#a1a1aa',
+    border: '#77BEF0',
+    input: '#ccdfed',
+    ring: '#7a8a9a',
 
     // Text colors
     text: '#000000',
@@ -84,12 +84,12 @@ const darkColors = {
     cardForeground: '#FFFFFF',
 
     // Popover colors
-    popover: '#18181b',
+    popover: '#424242',
     popoverForeground: '#FFFFFF',
 
     // Primary colors
-    primary: '#2f8dc8',
-    primaryForeground: '#18181b',
+    primary: '#77BEF0',
+    primaryForeground: '#171c1e',
 
     // Secondary colors
     secondary: '#1C1C1E',
@@ -100,17 +100,17 @@ const darkColors = {
     mutedForeground: '#a1a1aa',
 
     // Accent colors
-    accent: '#1C1C1E',
-    accentForeground: '#FFFFFF',
+    accent: '#FFCB61',
+    accentForeground: '#27221e',
 
     // Destructive colors
-    destructive: '#dc2626',
-    destructiveForeground: '#FFFFFF',
+    destructive: '#ef4444',
+    destructiveForeground: '#ffffff',
 
     // Border and input - using alpha values for better blending
-    border: '#cdcdd1',
-    input: 'rgba(255, 255, 255, 0.15)',
-    ring: '#71717a',
+    border: '#77BEF0',
+    input: 'rgba(119,190,240,0.15)',
+    ring: '#4e5a61',
 
     // Text colors
     text: '#FFFFFF',
