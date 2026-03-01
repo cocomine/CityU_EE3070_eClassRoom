@@ -7,7 +7,8 @@ import { View } from "@/components/ui/view";
 import { useColor } from "@/hooks/useColor";
 import BottomSheet, { BottomSheetView } from "@gorhom/bottom-sheet";
 import { useLocalSearchParams } from "expo-router";
-import { StrictMode, useCallback, useEffect, useRef, useState } from "react";
+import * as ScreenOrientation from "expo-screen-orientation";
+import { StrictMode, useEffect, useState } from "react";
 import { StyleSheet } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -64,6 +65,7 @@ export default function Teacher() {
     const [classRoomData, setClassRoomData] = useState<ClassRoomDataTeacher>(defaultClassRoomData);
     const [weatherGovData, setWeatherGovData] = useState<WeatherGovData>(defaultWeatherGovData);
     const {toast} = useToast();
+    const [isLandscape, setIsLandscape] = useState(false);
 
     // Fetch classroom data
     useEffect(() => {
@@ -75,10 +77,11 @@ export default function Teacher() {
             setClassRoomData({...FakeClassRoom});
         }, 5000);
 
-
+        // Fetch weather data from data.weather.gov.hk API
         fetch('https://data.weather.gov.hk/weatherAPI/opendata/weather.php?dataType=fnd&lang=tc', {
             signal: controller.signal
         }).then(async res => {
+            // Check if response is OK before parsing JSON
             if ( res.ok ) {
                 const data = await res.json();
                 setWeatherGovData({
@@ -87,6 +90,8 @@ export default function Teacher() {
                 });
                 return;
             }
+
+            // Handle non-OK responses
             toast({
                 title: 'Failed to fetch weather data',
                 description: `Status: ${res.status} ${res.statusText}`,
@@ -108,26 +113,58 @@ export default function Teacher() {
         return () => controller.abort();
     }, [toast]);
 
+    // Listen for screen orientation changes and update layout accordingly
+    useEffect(() => {
+        let isMounted = true;
+
+        // Function to update orientation state based on current screen orientation
+        const updateOrientation = (orientation: ScreenOrientation.Orientation) => {
+            const landscape =
+                orientation === ScreenOrientation.Orientation.LANDSCAPE_LEFT ||
+                orientation === ScreenOrientation.Orientation.LANDSCAPE_RIGHT;
+            if ( isMounted ) {
+                setIsLandscape(landscape);
+            }
+        };
+
+        // Get initial orientation and set state
+        ScreenOrientation.getOrientationAsync()
+            .then(updateOrientation)
+            .catch(() => {
+                if ( isMounted ) {
+                    setIsLandscape(false);
+                }
+            });
+
+        // Subscribe to orientation changes and update state accordingly
+        const subscription = ScreenOrientation.addOrientationChangeListener(({orientationInfo}) => {
+            updateOrientation(orientationInfo.orientation);
+        });
+
+        return () => {
+            isMounted = false;
+            subscription.remove();
+        };
+    }, []);
+
     return (
         <GestureHandlerRootView style={styles.container}>
-            <StrictMode>
-                <SafeAreaView style={styles.screen}>
-                    <View style={styles.cardGrid}>
-                        <View style={{flex: 1 / 5}}>
-                            <HumidityCard value={classRoomData.humidity}/>
-                        </View>
-                        <View style={{flex: 1 / 4}}>
-                            <TemperatureCard
-                                current={classRoomData.temperature}
-                                min={weatherGovData.minTemperature}
-                                max={weatherGovData.maxTemperature}
-                                humidity={classRoomData.humidity}
-                            />
-                        </View>
+            <SafeAreaView style={styles.screen}>
+                <View style={styles.cardGrid}>
+                    <View style={{flex: 1 / 4}}>
+                        <HumidityCard value={classRoomData.humidity}/>
                     </View>
-                </SafeAreaView>
-                <LLMBottomSheet/>
-            </StrictMode>
+                    <View style={{flex: 1 / 3 }}>
+                        <TemperatureCard
+                            current={classRoomData.temperature}
+                            min={weatherGovData.minTemperature}
+                            max={weatherGovData.maxTemperature}
+                            humidity={classRoomData.humidity}
+                        />
+                    </View>
+                </View>
+            </SafeAreaView>
+            <LLMBottomSheet/>
         </GestureHandlerRootView>
     );
 }

@@ -5,6 +5,7 @@ import { StatusBar } from 'expo-status-bar';
 import 'react-native-reanimated';
 
 import { useColorScheme } from '@/hooks/useColorScheme';
+import { StrictMode } from "react";
 
 export default function RootLayout() {
     const colorScheme = useColorScheme();
@@ -12,13 +13,15 @@ export default function RootLayout() {
     return (
         <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
             <ToastProvider>
-                <Stack>
-                    <Stack.Screen name="index" options={{headerShown: false}}/>
-                    <Stack.Screen name="student/index"
-                                  options={{headerBackButtonDisplayMode: 'minimal', title: "Student Terminal"}}/>
-                    <Stack.Screen name="teacher/index"
-                                  options={{headerBackButtonDisplayMode: 'minimal', title: "Teacher Terminal"}}/>
-                </Stack>
+                <StrictMode>
+                    <Stack>
+                        <Stack.Screen name="index" options={{headerShown: false}}/>
+                        <Stack.Screen name="student/index"
+                                      options={{headerBackButtonDisplayMode: 'minimal', title: "Student Terminal"}}/>
+                        <Stack.Screen name="teacher/index"
+                                      options={{headerBackButtonDisplayMode: 'minimal', title: "Teacher Terminal"}}/>
+                    </Stack>
+                </StrictMode>
                 <StatusBar style="auto"/>
             </ToastProvider>
         </ThemeProvider>
