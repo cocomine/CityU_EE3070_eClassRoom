@@ -1,4 +1,5 @@
 import { HumidityCard } from '@/components/weather/humidity-card';
+import { TemperatureCard } from '@/components/weather/temperature-card';
 import { Separator } from "@/components/ui/separator";
 import { Text } from "@/components/ui/text";
 import { View } from "@/components/ui/view";
@@ -45,6 +46,7 @@ export default function Teacher() {
 
     const humidityValue = classRoomData?.humidity ?? 0;
     const humidityNote = classRoomData ? undefined : '資料載入中...';
+    const temperatureValue = classRoomData?.temperature ?? 0;
 
     return (
         <GestureHandlerRootView style={styles.container}>
@@ -52,6 +54,14 @@ export default function Teacher() {
                 <View style={styles.cardGrid}>
                     <View style={{flex:1/5}}>
                         <HumidityCard value={humidityValue} note={humidityNote} />
+                    </View>
+                    <View style={{flex:1/4}}>
+                        <TemperatureCard
+                            current={temperatureValue}
+                            min={temperatureValue - 3}
+                            max={temperatureValue + 4}
+                            humidity={humidityValue}
+                        />
                     </View>
                 </View>
             </SafeAreaView>
