@@ -158,7 +158,7 @@ export function HumidityCard({value, dewPoint, note, style}: HumidityCardProps) 
                         ) : (
                             <View style={styles.valueRow}>
                                 <Text style={styles.valueText}>{displayValue}</Text>
-                                <Text style={styles.valueUnit} variant={'caption'}>%</Text>
+                                <Text style={styles.valueUnit}>%</Text>
                             </View>
                         )}
                     </View>

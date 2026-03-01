@@ -1,4 +1,5 @@
 import { useToast } from "@/components/ui/toast";
+import { Co2CardMolecule } from '@/components/weather/co2-card-molecule';
 import { HumidityCard } from '@/components/weather/humidity-card';
 import { LightCard } from '@/components/weather/light-card';
 import { TemperatureCard } from '@/components/weather/temperature-card';
@@ -10,13 +11,13 @@ import BottomSheet, { BottomSheetView } from "@gorhom/bottom-sheet";
 import { useLocalSearchParams } from "expo-router";
 import * as ScreenOrientation from "expo-screen-orientation";
 import { useEffect, useState } from "react";
-import { StyleSheet } from "react-native";
+import { ScrollView, StyleSheet } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 const FakeCourse: CourseDataTeacher = {title: 'Fake Course', courseId: '123456'};
 const FakeClassRoom: ClassRoomDataTeacher = {
-    co2: 400,
+    co2: 2000,
     temperature: 22,
     humidity: 80,
     light: 500
@@ -76,7 +77,7 @@ export default function Teacher() {
         // Simulate fetching course details from backend with a delay
         setTimeout(() => {
             setClassRoomData({...FakeClassRoom});
-        }, 5000);
+        }, 1000);
 
         // Fetch weather data from data.weather.gov.hk API
         fetch('https://data.weather.gov.hk/weatherAPI/opendata/weather.php?dataType=fnd&lang=tc', {
@@ -151,22 +152,27 @@ export default function Teacher() {
     return (
         <GestureHandlerRootView style={styles.container}>
             <SafeAreaView style={styles.screen}>
-                <View style={styles.cardGrid}>
-                    <View style={[styles.cardSlot, {minWidth: '20%'}]}>
-                        <HumidityCard value={classRoomData.humidity}/>
+                <ScrollView>
+                    <View style={styles.cardGrid}>
+                        <View style={[styles.cardSlot, {minWidth: '20%'}]}>
+                            <HumidityCard value={classRoomData.humidity}/>
+                        </View>
+                        <View style={[styles.cardSlot, {minWidth: '20%'}]}>
+                            <TemperatureCard
+                                current={classRoomData.temperature}
+                                min={weatherGovData.minTemperature}
+                                max={weatherGovData.maxTemperature}
+                                humidity={classRoomData.humidity}
+                            />
+                        </View>
+                        <View style={[styles.cardSlot, {minWidth: '20%'}]}>
+                            <LightCard value={classRoomData.light}/>
+                        </View>
+                        <View style={[styles.cardSlot, {minWidth: '20%'}]}>
+                            <Co2CardMolecule value={classRoomData.co2}/>
+                        </View>
                     </View>
-                    <View style={[styles.cardSlot, {minWidth: '20%'}]}>
-                        <TemperatureCard
-                            current={classRoomData.temperature}
-                            min={weatherGovData.minTemperature}
-                            max={weatherGovData.maxTemperature}
-                            humidity={classRoomData.humidity}
-                        />
-                    </View>
-                    <View style={[styles.cardSlot, {minWidth: '20%'}]}>
-                        <LightCard value={classRoomData.light} max={1000}/>
-                    </View>
-                </View>
+                </ScrollView>
             </SafeAreaView>
             <LLMBottomSheet/>
         </GestureHandlerRootView>
