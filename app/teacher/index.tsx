@@ -1,5 +1,6 @@
 import { useToast } from "@/components/ui/toast";
 import { Co2CardMolecule } from '@/components/weather/co2-card-molecule';
+import { Co2CardGauge } from '@/components/weather/co2-card-gauge';
 import { HumidityCard } from '@/components/weather/humidity-card';
 import { LightCard } from '@/components/weather/light-card';
 import { TemperatureCard } from '@/components/weather/temperature-card';
@@ -17,7 +18,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 const FakeCourse: CourseDataTeacher = {title: 'Fake Course', courseId: '123456'};
 const FakeClassRoom: ClassRoomDataTeacher = {
-    co2: 2000,
+    co2: 500,
     temperature: 22,
     humidity: 80,
     light: 500
@@ -168,10 +169,13 @@ export default function Teacher() {
                         <View style={[styles.cardSlot, {minWidth: '20%'}]}>
                             <LightCard value={classRoomData.light}/>
                         </View>
-                        <View style={[styles.cardSlot, {minWidth: '20%'}]}>
-                            <Co2CardMolecule value={classRoomData.co2}/>
-                        </View>
+                    <View style={[styles.cardSlot, {minWidth: '20%'}]}>
+                        <Co2CardMolecule value={classRoomData.co2} min={0} max={1000}/>
                     </View>
+                    <View style={[styles.cardSlot, {minWidth: '20%'}]}>
+                        <Co2CardGauge value={classRoomData.co2} min={0} max={1000}/>
+                    </View>
+                </View>
                 </ScrollView>
             </SafeAreaView>
             <LLMBottomSheet/>
@@ -231,7 +235,8 @@ const styles = StyleSheet.create({
     cardGrid: {
         gap: 16,
         flexDirection: 'row',
-        flexWrap: 'wrap'
+        flexWrap: 'wrap',
+        paddingBottom: 100
     },
     cardSlot: {
         flexBasis: '48%',
