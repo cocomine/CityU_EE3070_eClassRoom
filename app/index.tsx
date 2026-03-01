@@ -50,6 +50,16 @@ export default function Root() {
     );
 }
 
+/**
+ * TeacherBottomSheet component, show course list and create new course option,
+ * when user click a course, navigate to teacher page with course id and close the bottom sheet,
+ * when user click create new course, navigate to create course sheet and close the bottom sheet,
+ * when user complete entering course name,
+ * create new course and navigate to teacher page with new course id and close the bottom sheet.
+ * @param isVisible
+ * @param onClose
+ * @constructor
+ */
 function TeacherBottomSheet({isVisible, onClose}: { isVisible: boolean, onClose: () => void }) {
     const router = useRouter();
     const createNewCourseBottomSheet = useBottomSheet();
@@ -202,6 +212,15 @@ function TeacherBottomSheet({isVisible, onClose}: { isVisible: boolean, onClose:
     );
 }
 
+/**
+ * StudentBottomSheet component, show input for course code,
+ * when user complete entering course code, validate the code,
+ * if the code is valid, navigate to student page with course id and close the bottom sheet,
+ * if the code is invalid, show error message and clear the input.
+ * @param isVisible
+ * @param onClose
+ * @constructor
+ */
 function StudentBottomSheet({isVisible, onClose}: { isVisible: boolean, onClose: () => void }) {
     const [courseId, setCourseId] = useState('');
     const [error, setError] = useState('');
