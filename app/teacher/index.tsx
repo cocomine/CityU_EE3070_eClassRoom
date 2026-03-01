@@ -1,5 +1,6 @@
 import { useToast } from "@/components/ui/toast";
 import { HumidityCard } from '@/components/weather/humidity-card';
+import { LightCard } from '@/components/weather/light-card';
 import { TemperatureCard } from '@/components/weather/temperature-card';
 import { Separator } from "@/components/ui/separator";
 import { Text } from "@/components/ui/text";
@@ -18,7 +19,7 @@ const FakeClassRoom: ClassRoomDataTeacher = {
     co2: 400,
     temperature: 22,
     humidity: 80,
-    light: 300
+    light: 500
 };
 
 // Teacher selected course data structure
@@ -151,16 +152,19 @@ export default function Teacher() {
         <GestureHandlerRootView style={styles.container}>
             <SafeAreaView style={styles.screen}>
                 <View style={styles.cardGrid}>
-                    <View style={{flex: 1 / 4}}>
+                    <View style={[styles.cardSlot, {minWidth: '20%'}]}>
                         <HumidityCard value={classRoomData.humidity}/>
                     </View>
-                    <View style={{flex: 1 / 3 }}>
+                    <View style={[styles.cardSlot, {minWidth: '20%'}]}>
                         <TemperatureCard
                             current={classRoomData.temperature}
                             min={weatherGovData.minTemperature}
                             max={weatherGovData.maxTemperature}
                             humidity={classRoomData.humidity}
                         />
+                    </View>
+                    <View style={[styles.cardSlot, {minWidth: '20%'}]}>
+                        <LightCard value={classRoomData.light} max={1000}/>
                     </View>
                 </View>
             </SafeAreaView>
@@ -173,7 +177,7 @@ function LLMBottomSheet() {
     const {courseId} = useLocalSearchParams<{ courseId: string }>();
     const bottomSheetBackgroundColor = useColor('card');
     const bottomSheetHandleColor = useColor('muted');
-    const [courseData, setCourseData] = useState<CourseDataTeacher | null>(null);
+    const [courseData, setCourseData] = useState<CourseDataTeacher>(defaultCourseData);
 
     // Fetch course details
     useEffect(() => {
@@ -194,7 +198,7 @@ function LLMBottomSheet() {
             <BottomSheetView style={styles.contentContainer}>
                 <View style={styles.infoContainer}>
                     <View>
-                        <Text variant={'subtitle'}>Course: {courseData?.title}</Text>
+                        <Text variant={'subtitle'}>Course: {courseData.title}</Text>
                     </View>
                     <View>
                         <Text variant={'caption'}>ID: {courseId}</Text>
@@ -220,7 +224,12 @@ const styles = StyleSheet.create({
     },
     cardGrid: {
         gap: 16,
-        flexDirection: 'row'
+        flexDirection: 'row',
+        flexWrap: 'wrap'
+    },
+    cardSlot: {
+        flexBasis: '48%',
+        flexGrow: 1
     },
     contentContainer: {
         flex: 1,
