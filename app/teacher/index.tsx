@@ -1,3 +1,4 @@
+import { useToast } from "@/components/ui/toast";
 import { HumidityCard } from '@/components/weather/humidity-card';
 import { TemperatureCard } from '@/components/weather/temperature-card';
 import { Separator } from "@/components/ui/separator";
@@ -15,52 +16,111 @@ const FakeCourse: CourseDataTeacher = {title: 'Fake Course', courseId: '123456'}
 const FakeClassRoom: ClassRoomDataTeacher = {
     co2: 400,
     temperature: 22,
-    humidity: 50,
+    humidity: 80,
     light: 300
 };
 
+// Teacher selected course data structure
 export interface CourseDataTeacher {
-    title: string;
-    courseId: string;
+    title: string | null;
+    courseId: string | null;
 }
 
+// Classroom environmental data structure
 export interface ClassRoomDataTeacher {
-    co2: number;
-    temperature: number;
-    humidity: number;
-    light: number;
+    co2: number | null;
+    temperature: number | null;
+    humidity: number | null;
+    light: number | null;
 }
+
+// Weather data structure from data.weather.gov.hk API
+export interface WeatherGovData {
+    maxTemperature: number | null;
+    minTemperature: number | null;
+}
+
+// Default values for course and classroom data while loading
+const defaultCourseData: CourseDataTeacher = {
+    title: null,
+    courseId: null
+};
+
+// Default values for classroom data while loading
+const defaultClassRoomData: ClassRoomDataTeacher = {
+    co2: null,
+    temperature: null,
+    humidity: null,
+    light: null
+};
+
+// Default values for weather data while loading
+const defaultWeatherGovData: WeatherGovData = {
+    maxTemperature: null,
+    minTemperature: null
+};
 
 export default function Teacher() {
-    const [classRoomData, setClassRoomData] = useState<ClassRoomDataTeacher | null>(null);
+    const [classRoomData, setClassRoomData] = useState<ClassRoomDataTeacher>(defaultClassRoomData);
+    const [weatherGovData, setWeatherGovData] = useState<WeatherGovData>(defaultWeatherGovData);
+    const { toast } = useToast();
 
     // Fetch classroom data
     useEffect(() => {
+        const controller = new AbortController();
         //TODO: fetch course title from backend
 
         // Simulate fetching course details from backend with a delay
         setTimeout(() => {
             setClassRoomData({...FakeClassRoom});
-        }, 1000);
-    }, []);
+        }, 5000);
 
-    const humidityValue = classRoomData?.humidity ?? 0;
-    const humidityNote = classRoomData ? undefined : '資料載入中...';
-    const temperatureValue = classRoomData?.temperature ?? 0;
+
+        fetch('https://data.weather.gov.hk/weatherAPI/opendata/weather.php?dataType=fnd&lang=tc', {
+            signal: controller.signal
+        }).then(async res => {
+            if(res.ok){
+                const data = await res.json()
+                setWeatherGovData({
+                    maxTemperature: data?.weatherForecast[0]?.forecastMaxtemp,
+                    minTemperature: data?.weatherForecast[0]?.forecastMintemp
+                })
+                return
+            }
+            toast({
+                title: 'Failed to fetch weather data',
+                description: `Status: ${res.status} ${res.statusText}`,
+                variant: 'error',
+            });
+        }).catch(err => {
+            if ( err.name === 'AbortError' ) {
+                console.log('Fetch aborted');
+            } else {
+                toast({
+                    title: 'Error fetching weather data',
+                    description: err.message,
+                    variant: 'error',
+                })
+                console.error('Fetch error:', err);
+            }
+        });
+
+        return () => controller.abort();
+    }, [toast]);
 
     return (
         <GestureHandlerRootView style={styles.container}>
             <SafeAreaView style={styles.screen}>
                 <View style={styles.cardGrid}>
-                    <View style={{flex:1/5}}>
-                        <HumidityCard value={humidityValue} note={humidityNote} />
+                    <View style={{flex: 1 / 5}}>
+                        <HumidityCard value={classRoomData.humidity}/>
                     </View>
-                    <View style={{flex:1/4}}>
+                    <View style={{flex: 1 / 4}}>
                         <TemperatureCard
-                            current={temperatureValue}
-                            min={temperatureValue - 3}
-                            max={temperatureValue + 4}
-                            humidity={humidityValue}
+                            current={classRoomData.temperature}
+                            min={weatherGovData.minTemperature}
+                            max={weatherGovData.maxTemperature}
+                            humidity={classRoomData.humidity}
                         />
                     </View>
                 </View>

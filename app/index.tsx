@@ -83,7 +83,7 @@ function TeacherBottomSheet({isVisible, onClose}: { isVisible: boolean, onClose:
     // when user complete entering course name, create new course and navigate to teacher page with new course id and
     // close the bottom sheet
     const onCreateNewCourseComplete = useCallback<Exclude<TextInputProps['onSubmitEditing'], undefined>>(async ({nativeEvent}) => {
-        console.log(nativeEvent.text);
+        console.log('Enter: ', nativeEvent.text);
 
         // validate course name
         if ( !nativeEvent.text || nativeEvent.text.trim() === '' ) {
@@ -123,7 +123,6 @@ function TeacherBottomSheet({isVisible, onClose}: { isVisible: boolean, onClose:
 
     // render course list, when course list changes, re-render the list
     const renderItem = useMemo(() => {
-        console.log(courseList);
         if ( courseList === null ) {
             return new Array(5).fill(0).map((_, i) => (
                 <View
