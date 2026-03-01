@@ -150,7 +150,7 @@ export function TemperatureCard(
 
                 {/* Show Heat Index (or manual feelsLike) if available. */}
                 {showFeelsLikeSkeleton ? (
-                    <Skeleton width={140} height={14} variant="rounded"/>
+                    <Skeleton width={140} height={18} variant="rounded"/>
                 ) : effectiveFeelsLike !== undefined ? (
                     <Text variant="caption" style={styles.feelsLike}>
                         Feels like {Math.round(effectiveFeelsLike)}°
@@ -217,8 +217,8 @@ export function TemperatureCard(
                 {/* Show min/max labels or skeletons if loading. */}
                 {showRangeSkeleton ? (
                     <View style={styles.rangeLabels}>
-                        <Skeleton width={60} height={12} variant="rounded"/>
-                        <Skeleton width={60} height={12} variant="rounded"/>
+                        <Skeleton width={60} height={18} variant="rounded"/>
+                        <Skeleton width={60} height={18} variant="rounded"/>
                     </View>
                 ) : (
                     <View style={styles.rangeLabels}>

@@ -7,7 +7,7 @@ import { View } from "@/components/ui/view";
 import { useColor } from "@/hooks/useColor";
 import BottomSheet, { BottomSheetView } from "@gorhom/bottom-sheet";
 import { useLocalSearchParams } from "expo-router";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { StrictMode, useCallback, useEffect, useRef, useState } from "react";
 import { StyleSheet } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -63,7 +63,7 @@ const defaultWeatherGovData: WeatherGovData = {
 export default function Teacher() {
     const [classRoomData, setClassRoomData] = useState<ClassRoomDataTeacher>(defaultClassRoomData);
     const [weatherGovData, setWeatherGovData] = useState<WeatherGovData>(defaultWeatherGovData);
-    const { toast } = useToast();
+    const {toast} = useToast();
 
     // Fetch classroom data
     useEffect(() => {
@@ -79,18 +79,18 @@ export default function Teacher() {
         fetch('https://data.weather.gov.hk/weatherAPI/opendata/weather.php?dataType=fnd&lang=tc', {
             signal: controller.signal
         }).then(async res => {
-            if(res.ok){
-                const data = await res.json()
+            if ( res.ok ) {
+                const data = await res.json();
                 setWeatherGovData({
                     maxTemperature: data?.weatherForecast[0]?.forecastMaxtemp,
                     minTemperature: data?.weatherForecast[0]?.forecastMintemp
-                })
-                return
+                });
+                return;
             }
             toast({
                 title: 'Failed to fetch weather data',
                 description: `Status: ${res.status} ${res.statusText}`,
-                variant: 'error',
+                variant: 'error'
             });
         }).catch(err => {
             if ( err.name === 'AbortError' ) {
@@ -99,8 +99,8 @@ export default function Teacher() {
                 toast({
                     title: 'Error fetching weather data',
                     description: err.message,
-                    variant: 'error',
-                })
+                    variant: 'error'
+                });
                 console.error('Fetch error:', err);
             }
         });
@@ -110,29 +110,30 @@ export default function Teacher() {
 
     return (
         <GestureHandlerRootView style={styles.container}>
-            <SafeAreaView style={styles.screen}>
-                <View style={styles.cardGrid}>
-                    <View style={{flex: 1 / 5}}>
-                        <HumidityCard value={classRoomData.humidity}/>
+            <StrictMode>
+                <SafeAreaView style={styles.screen}>
+                    <View style={styles.cardGrid}>
+                        <View style={{flex: 1 / 5}}>
+                            <HumidityCard value={classRoomData.humidity}/>
+                        </View>
+                        <View style={{flex: 1 / 4}}>
+                            <TemperatureCard
+                                current={classRoomData.temperature}
+                                min={weatherGovData.minTemperature}
+                                max={weatherGovData.maxTemperature}
+                                humidity={classRoomData.humidity}
+                            />
+                        </View>
                     </View>
-                    <View style={{flex: 1 / 4}}>
-                        <TemperatureCard
-                            current={classRoomData.temperature}
-                            min={weatherGovData.minTemperature}
-                            max={weatherGovData.maxTemperature}
-                            humidity={classRoomData.humidity}
-                        />
-                    </View>
-                </View>
-            </SafeAreaView>
-            <LLMBottomSheet/>
+                </SafeAreaView>
+                <LLMBottomSheet/>
+            </StrictMode>
         </GestureHandlerRootView>
     );
 }
 
 function LLMBottomSheet() {
     const {courseId} = useLocalSearchParams<{ courseId: string }>();
-    const bottomSheetRef = useRef<BottomSheet>(null);
     const bottomSheetBackgroundColor = useColor('card');
     const bottomSheetHandleColor = useColor('muted');
     const [courseData, setCourseData] = useState<CourseDataTeacher | null>(null);
@@ -149,7 +150,6 @@ function LLMBottomSheet() {
 
     return (
         <BottomSheet
-            ref={bottomSheetRef}
             snapPoints={[100, '50%', '95%']}
             backgroundStyle={{backgroundColor: bottomSheetBackgroundColor}}
             handleIndicatorStyle={{backgroundColor: bottomSheetHandleColor}}
