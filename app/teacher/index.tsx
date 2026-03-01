@@ -1,3 +1,4 @@
+import { HumidityCard } from '@/components/weather/humidity-card';
 import { Separator } from "@/components/ui/separator";
 import { Text } from "@/components/ui/text";
 import { View } from "@/components/ui/view";
@@ -42,11 +43,16 @@ export default function Teacher() {
         }, 1000);
     }, []);
 
+    const humidityValue = classRoomData?.humidity ?? 0;
+    const humidityNote = classRoomData ? undefined : '資料載入中...';
+
     return (
         <GestureHandlerRootView style={styles.container}>
-            <SafeAreaView style={styles.container}>
-                <View>
-
+            <SafeAreaView style={styles.screen}>
+                <View style={styles.cardGrid}>
+                    <View style={{flex:1/5}}>
+                        <HumidityCard value={humidityValue} note={humidityNote} />
+                    </View>
                 </View>
             </SafeAreaView>
             <LLMBottomSheet/>
@@ -99,7 +105,14 @@ function LLMBottomSheet() {
 
 const styles = StyleSheet.create({
     container: {
+        flex: 1
+    },
+    screen: {
         flex: 1,
+        paddingHorizontal: 20
+    },
+    cardGrid: {
+        gap: 16,
         flexDirection: 'row'
     },
     contentContainer: {
