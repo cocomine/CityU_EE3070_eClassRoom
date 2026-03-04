@@ -85,10 +85,27 @@ export function Co2CardGauge(
     // Vertical offset that visually centers the value in the ring.
     const gaugeCenterTop = gauge.cy - 30;
 
+    const tickColors = {
+        good: '#34D399',
+        moderate: '#FBBF24',
+        stuffy: '#F87171',
+        poor: '#A78BFA',
+        low: 'rgba(255,255,255,0.25)'
+    };
+
+    // Color by CO2 concentration band (no gradient).
+    const getTickColor = (valueAtTick: number) => {
+        if ( valueAtTick >= 1900 ) return tickColors.poor;
+        if ( valueAtTick >= 1500 ) return tickColors.stuffy;
+        if ( valueAtTick >= 1000 ) return tickColors.moderate;
+        if ( valueAtTick < 1000 ) return tickColors.good;
+        return tickColors.low;
+    };
+
     // Precompute tick mark positions for the gauge arc. Major ticks every 6th mark.
     const ticks = useMemo(() => {
         const count = 54;
-        const lines: { x1: number; y1: number; x2: number; y2: number; major: boolean }[] = [];
+        const lines: { x1: number; y1: number; x2: number; y2: number; major: boolean; value: number }[] = [];
         for ( let i = 0 ; i <= count ; i += 1 ) {
             // Angle direction controls whether ticks run clockwise or counterclockwise.
             const angle = gauge.startAngle - gauge.sweep * (i / count);
@@ -96,16 +113,18 @@ export function Co2CardGauge(
             const sin = Math.sin(angle);
             const major = i % 6 === 0;
             const inner = major ? gauge.inner - 6 : gauge.inner;
+            const valueAtTick = min + (range * i) / count;
             lines.push({
                 x1: gauge.cx + inner * cos,
                 y1: gauge.cy - inner * sin,
                 x2: gauge.cx + gauge.outer * cos,
                 y2: gauge.cy - gauge.outer * sin,
-                major
+                major,
+                value: valueAtTick
             });
         }
         return lines;
-    }, [gauge.cx, gauge.cy, gauge.inner, gauge.outer, gauge.startAngle, gauge.sweep]);
+    }, [gauge.cx, gauge.cy, gauge.inner, gauge.outer, gauge.startAngle, gauge.sweep, min, range]);
 
     // Pointer angle maps value to the arc span.
     const pointerAngle = gauge.startAngle - gauge.sweep * progress;
@@ -171,7 +190,7 @@ export function Co2CardGauge(
                                     y1={tick.y1}
                                     x2={tick.x2}
                                     y2={tick.y2}
-                                    stroke="rgba(255,255,255,0.25)"
+                                    stroke={getTickColor(tick.value)}
                                     strokeWidth={tick.major ? 3 : 2}
                                     strokeLinecap="round"
                                 />

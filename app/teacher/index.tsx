@@ -169,7 +169,7 @@ export default function Teacher() {
                             <LightCard value={classRoomData.light} max={1000}/>
                         </View>
                         <View style={[styles.cardSlot, {minWidth: '20%'}]}>
-                            <Co2CardGauge value={1000} min={400} max={2000}/>
+                            <Co2CardGauge value={1000} min={350} max={2000}/>
                         </View>
                     </View>
                 </ScrollView>
