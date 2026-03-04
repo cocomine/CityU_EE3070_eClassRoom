@@ -4,12 +4,12 @@ import { Text } from "@/components/ui/text";
 import { useColor } from "@/hooks/useColor";
 import { getFileMeta } from '@/utils/file-meta';
 import { X } from 'lucide-react-native';
-import { FC, useMemo } from "react";
+import { useMemo } from "react";
 import { StyleSheet } from "react-native";
 
-export const FileCard: FC<{ filename: string, onClick?: () => void }> = ({filename, onClick}) => {
+export function FileCard({filename, onClick}: { filename: string, onClick?: () => void }) {
     const borderColor = useColor('border');
-    const { icon, color } = useMemo(() => getFileMeta(filename), [filename]);
+    const {icon, color} = useMemo(() => getFileMeta(filename), [filename]);
 
     return (
         <Card style={[styles.card, {borderColor: borderColor}]}>
@@ -21,6 +21,10 @@ export const FileCard: FC<{ filename: string, onClick?: () => void }> = ({filena
         </Card>
     );
 };
+
+export function FileUploadCard() {
+    //todo: implement file upload
+}
 
 const styles = StyleSheet.create({
     card: {

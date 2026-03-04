@@ -186,8 +186,10 @@ function LLMBottomSheet() {
     const [courseData, setCourseData] = useState<CourseDataTeacher>(defaultCourseData);
     const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[] | null>(null);
 
+    // Callback to handle file deletion
     const deleteFile = useCallback((id: string) => {
         console.log("Deleting file with id: ", id);
+        //TODO: send delete request to backend to delete the file with the given id
         setUploadedFiles(prevState => prevState ? prevState.filter(file => file.id !== id) : null);
     }, []);
 
@@ -271,6 +273,7 @@ function UploadedFiles(props:{ files: UploadedFile[], onDelete?: (id: string) =>
             keyExtractor={(item) => item.id}
             ListEmptyComponent={<Text variant={'caption'}>No files uploaded yet.</Text>}
             ItemSeparatorComponent={props => <View style={{width: 10}} {...props}/>}
+            ListHeaderComponent={<FileCard filename={"test"}/>}
         />
     );
 };
