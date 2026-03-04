@@ -1,11 +1,10 @@
 import { ToastProvider } from "@/components/ui/toast";
+
+import { useColorScheme } from '@/hooks/useColorScheme';
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import 'react-native-reanimated';
-
-import { useColorScheme } from '@/hooks/useColorScheme';
-import { StrictMode } from "react";
 
 export default function RootLayout() {
     const colorScheme = useColorScheme();
@@ -13,7 +12,7 @@ export default function RootLayout() {
     return (
         <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
             <ToastProvider>
-                <StrictMode>
+
                     <Stack>
                         <Stack.Screen name="index" options={{headerShown: false}}/>
                         <Stack.Screen name="student/index"
@@ -21,7 +20,7 @@ export default function RootLayout() {
                         <Stack.Screen name="teacher/index"
                                       options={{headerBackButtonDisplayMode: 'minimal', title: "Teacher Terminal"}}/>
                     </Stack>
-                </StrictMode>
+
                 <StatusBar style="auto"/>
             </ToastProvider>
         </ThemeProvider>

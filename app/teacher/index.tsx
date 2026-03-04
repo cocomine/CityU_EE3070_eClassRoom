@@ -1,18 +1,19 @@
 import { FileCard } from "@/components/FileCard";
+import { Col, Row } from '@/components/ui/grid';
+import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Text } from "@/components/ui/text";
 import { useToast } from "@/components/ui/toast";
+import { View } from "@/components/ui/view";
 import { Co2CardGauge } from '@/components/weather/co2-card-gauge';
 import { HumidityCard } from '@/components/weather/humidity-card';
 import { LightCard } from '@/components/weather/light-card';
 import { TemperatureCard } from '@/components/weather/temperature-card';
-import { Col, Row } from '@/components/ui/grid';
-import { Separator } from "@/components/ui/separator";
-import { Text } from "@/components/ui/text";
-import { View } from "@/components/ui/view";
 import { useColor } from "@/hooks/useColor";
+import { FILE_EXTENSIONS } from "@/utils/file-meta";
 import BottomSheet, { BottomSheetScrollView, BottomSheetView } from "@gorhom/bottom-sheet";
 import { useLocalSearchParams } from "expo-router";
-import { FC, useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { FlatList, RefreshControl, ScrollView, StyleSheet, useWindowDimensions } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -25,9 +26,18 @@ const FakeClassRoom: ClassRoomDataTeacher = {
     light: 500
 };
 const FakeUploadedFiles: UploadedFile[] = [
-    {id: '1', name: 'Lecture 1 Slides.pdf'},
-    {id: '2', name: 'Lecture 2 Slides.pdf'},
-    {id: '3', name: 'Assignment 1.docx'}
+    ...FILE_EXTENSIONS.map((ext, index) => ({
+        id: String(index + 1),
+        name: `Sample.${ext}`
+    })),
+    {
+        id: String(FILE_EXTENSIONS.length + 1),
+        name: 'README'
+    },
+    {
+        id: String(FILE_EXTENSIONS.length + 2),
+        name: 'unknown.weirdext'
+    }
 ];
 
 // Uploaded file data structure
@@ -176,6 +186,11 @@ function LLMBottomSheet() {
     const [courseData, setCourseData] = useState<CourseDataTeacher>(defaultCourseData);
     const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[] | null>(null);
 
+    const deleteFile = useCallback((id: string) => {
+        console.log("Deleting file with id: ", id);
+        setUploadedFiles(prevState => prevState ? prevState.filter(file => file.id !== id) : null);
+    }, []);
+
     // Fetch course details
     useEffect(() => {
         //TODO: fetch course title from backend
@@ -184,15 +199,18 @@ function LLMBottomSheet() {
         // Simulate fetching course details from backend with a delay
         setTimeout(() => {
             setCourseData({...FakeCourse, courseId});
-            setUploadedFiles({...FakeUploadedFiles});
+            setUploadedFiles([...FakeUploadedFiles]);
         }, 1000);
     }, [courseId]);
 
     return (
         <BottomSheet
-            snapPoints={[100, '50%', '95%']}
+            snapPoints={[80, '60%', '100%']}
             backgroundStyle={{backgroundColor: bottomSheetBackgroundColor}}
             handleIndicatorStyle={{backgroundColor: bottomSheetHandleColor}}
+            index={0}
+            enableDynamicSizing={false}
+            enableContentPanningGesture={false}
         >
             <BottomSheetView style={styles.contentContainer}>
                 <View style={styles.infoContainer}>
@@ -207,20 +225,20 @@ function LLMBottomSheet() {
                         <Text variant={'caption'}>ID: {courseId}</Text>
                     </View>
                 </View>
-                <Separator/>
+                <Separator style={{marginVertical: 15}}/>
                 <BottomSheetScrollView
                     refreshControl={
                         <RefreshControl refreshing={false} onRefresh={() => {}}/>
                     }
                     nestedScrollEnabled={true}
                 >
-                    <View style={{marginTop: 15}}>
+                    <View>
                         <Text variant={'title'}>Uploaded files</Text>
                         <View style={{marginTop: 10}}>
                             {uploadedFiles === null ? (
                                 <Skeleton width={'100%'} height={60}/>
                             ) : (
-                                <UploadedFiles files={FakeUploadedFiles}/>
+                                <UploadedFiles files={uploadedFiles} onDelete={deleteFile}/>
                             )}
                         </View>
                     </View>
@@ -235,18 +253,21 @@ function LLMBottomSheet() {
  * Component to display a horizontal list of uploaded files for the selected course.
  * @constructor
  */
-const UploadedFiles: FC<{ files: UploadedFile[] }> = (props) => {
+function UploadedFiles(props:{ files: UploadedFile[], onDelete?: (id: string) => void }) {
     const [files, setFiles] = useState<UploadedFile[]>(props.files);
 
+    // Update local state when props.files changes
     useEffect(() => {
         setFiles(props.files);
     }, [props.files]);
 
     return (
         <FlatList
+            style={{paddingBottom: 8}}
             data={files}
             horizontal={true}
-            renderItem={({item}) => <FileCard filename={item.name}/>}
+            renderItem={({item}) =>
+                <FileCard filename={item.name} onClick={() => props.onDelete?.(item.id)}/>}
             keyExtractor={(item) => item.id}
             ListEmptyComponent={<Text variant={'caption'}>No files uploaded yet.</Text>}
             ItemSeparatorComponent={props => <View style={{width: 10}} {...props}/>}
@@ -271,7 +292,7 @@ const styles = StyleSheet.create({
         paddingHorizontal: 36
     },
     infoContainer: {
-        height: 100 - 20,
+        height: 44,
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center'
