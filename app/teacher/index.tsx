@@ -1,5 +1,4 @@
 import { useToast } from "@/components/ui/toast";
-import { Co2CardMolecule } from '@/components/weather/co2-card-molecule';
 import { Co2CardGauge } from '@/components/weather/co2-card-gauge';
 import { HumidityCard } from '@/components/weather/humidity-card';
 import { LightCard } from '@/components/weather/light-card';
@@ -167,15 +166,12 @@ export default function Teacher() {
                             />
                         </View>
                         <View style={[styles.cardSlot, {minWidth: '20%'}]}>
-                            <LightCard value={classRoomData.light}/>
+                            <LightCard value={classRoomData.light} max={1000}/>
                         </View>
-                    <View style={[styles.cardSlot, {minWidth: '20%'}]}>
-                        <Co2CardMolecule value={classRoomData.co2} min={0} max={1000}/>
+                        <View style={[styles.cardSlot, {minWidth: '20%'}]}>
+                            <Co2CardGauge value={1000} min={400} max={2000}/>
+                        </View>
                     </View>
-                    <View style={[styles.cardSlot, {minWidth: '20%'}]}>
-                        <Co2CardGauge value={classRoomData.co2} min={0} max={1000}/>
-                    </View>
-                </View>
                 </ScrollView>
             </SafeAreaView>
             <LLMBottomSheet/>

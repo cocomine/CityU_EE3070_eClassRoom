@@ -14,7 +14,7 @@ import Animated, {
     withRepeat,
     withTiming
 } from 'react-native-reanimated';
-import Svg, { Line } from 'react-native-svg';
+import Svg, { Line, Path } from 'react-native-svg';
 
 type Co2CardGaugeProps = {
     value: number | null;
@@ -30,14 +30,15 @@ const clamp = (value: number, min: number, max: number) => {
     return Math.min(max, Math.max(min, value));
 };
 
-export function Co2CardGauge({
-    value,
-    min = 0,
-    max = 1000,
-    unit = 'ppm',
-    note,
-    style
-}: Co2CardGaugeProps) {
+export function Co2CardGauge(
+    {
+        value,
+        min = 0,
+        max = 1000,
+        unit = 'ppm',
+        note,
+        style
+    }: Co2CardGaugeProps) {
     const mutedColor = useColor('muted');
     const isLoading = value === null || value === undefined;
 
@@ -49,6 +50,7 @@ export function Co2CardGauge({
         };
     });
 
+    // Animate opacity between 0.5 and 1 in a loop.
     useEffect(() => {
         opacity.value = withRepeat(
             withTiming(1, {
@@ -58,29 +60,38 @@ export function Co2CardGauge({
             -1,
             true
         );
-    }, []);
+    }, [opacity]);
 
+    // Normalize input to a 0..1 progress value for the gauge.
     const range = Math.max(1, max - min);
     const clampedValue = clamp(value ?? min, min, max);
     const progress = clamp((clampedValue - min) / range, 0, 1);
     const displayValue = Math.round(clampedValue);
 
-    // Gauge geometry (semi-circle).
+    // Gauge geometry (near-full circle with a small gap at the bottom).
     const gauge = {
-        width: 200,
-        height: 120,
-        cx: 100,
-        cy: 100,
-        inner: 62,
-        outer: 78,
-        pointer: 60
+        width: 240,
+        height: 210,
+        cx: 120,
+        cy: 120,
+        inner: 78,
+        outer: 98,
+        pointer: 74,
+        // startAngle = where the gauge begins; sweep = total angular span.
+        startAngle: (Math.PI * 255) / 180,
+        sweep: (Math.PI * 330) / 180
     };
+    const gaugeViewBox = `0 0 ${gauge.width} 240`;
+    // Vertical offset that visually centers the value in the ring.
+    const gaugeCenterTop = gauge.cy - 30;
 
+    // Precompute tick mark positions for the gauge arc. Major ticks every 6th mark.
     const ticks = useMemo(() => {
-        const count = 36;
+        const count = 54;
         const lines: { x1: number; y1: number; x2: number; y2: number; major: boolean }[] = [];
-        for (let i = 0; i <= count; i += 1) {
-            const angle = Math.PI - (Math.PI * i) / count;
+        for ( let i = 0 ; i <= count ; i += 1 ) {
+            // Angle direction controls whether ticks run clockwise or counterclockwise.
+            const angle = gauge.startAngle - gauge.sweep * (i / count);
             const cos = Math.cos(angle);
             const sin = Math.sin(angle);
             const major = i % 6 === 0;
@@ -94,44 +105,49 @@ export function Co2CardGauge({
             });
         }
         return lines;
-    }, [gauge.cx, gauge.cy, gauge.inner, gauge.outer]);
+    }, [gauge.cx, gauge.cy, gauge.inner, gauge.outer, gauge.startAngle, gauge.sweep]);
 
-    // Pointer angle maps value to the semi-circle.
-    const pointerAngle = Math.PI - Math.PI * progress;
-    const pointerX = gauge.cx + gauge.pointer * Math.cos(pointerAngle);
-    const pointerY = gauge.cy - gauge.pointer * Math.sin(pointerAngle);
+    // Pointer angle maps value to the arc span.
+    const pointerAngle = gauge.startAngle - gauge.sweep * progress;
+    const pointerCos = Math.cos(pointerAngle);
+    const pointerSin = Math.sin(pointerAngle);
+    const pointerX = gauge.cx + gauge.pointer * pointerCos;
+    const pointerY = gauge.cy - gauge.pointer * pointerSin;
+    const pointerBase = gauge.pointer - 16;
+    const pointerBaseX = gauge.cx + pointerBase * pointerCos;
+    const pointerBaseY = gauge.cy - pointerBase * pointerSin;
+    // Arrowhead width and perpendicular vector to build the triangle.
+    const pointerHalfWidth = 6;
+    const perpX = pointerSin;
+    const perpY = pointerCos;
+    const pointerLeftX = pointerBaseX + pointerHalfWidth * perpX;
+    const pointerLeftY = pointerBaseY + pointerHalfWidth * perpY;
+    const pointerRightX = pointerBaseX - pointerHalfWidth * perpX;
+    const pointerRightY = pointerBaseY - pointerHalfWidth * perpY;
 
     // Default note based on CO2 ranges.
     const derivedNote = useMemo(() => {
-        if (note) return note;
-        if (isLoading) return undefined;
-        if (clampedValue < 600) return 'Good air';
-        if (clampedValue < 800) return 'Moderate';
-        if (clampedValue < 1000) return 'Stuffy';
+        if ( note ) return note;
+        if ( isLoading ) return undefined;
+        if ( clampedValue < 1000 ) return 'Good air';
+        if ( clampedValue < 1500 ) return 'Moderate';
+        if ( clampedValue < 2000 ) return 'Stuffy';
         return 'Poor air';
     }, [note, isLoading, clampedValue]);
 
     return (
         <Card style={style}>
             <CardHeader style={styles.headerRow}>
-                <Icon name={Gauge} size={18} color="#E5E7EB" />
+                <Icon name={Gauge} size={18} color="#E5E7EB"/>
                 <Text variant="body">CO2</Text>
             </CardHeader>
 
             <CardContent style={styles.content}>
-                {isLoading ? (
-                    <Skeleton width={90} height={40} variant="rounded" />
-                ) : (
-                    <View style={styles.valueRow}>
-                        <Text style={styles.valueText}>{displayValue}</Text>
-                        <Text style={styles.valueUnit}>{unit}</Text>
-                    </View>
-                )}
-
                 <View style={styles.gaugeWrap}>
                     {isLoading ? (
                         <Animated.View style={[styles.skeletonGauge, animatedStyle]}>
-                            <Svg width="100%" height={gauge.height} viewBox={`0 0 ${gauge.width} ${gauge.height}`}>
+                            <Svg width="100%" height={gauge.height} viewBox={gaugeViewBox}>
+                                {/* Render tick marks only (no pointer) during loading. */}
                                 {ticks.map((tick, index) => (
                                     <Line
                                         key={index}
@@ -147,7 +163,7 @@ export function Co2CardGauge({
                             </Svg>
                         </Animated.View>
                     ) : (
-                        <Svg width="100%" height={gauge.height} viewBox={`0 0 ${gauge.width} ${gauge.height}`}>
+                        <Svg width="100%" height={gauge.height} viewBox={gaugeViewBox}>
                             {ticks.map((tick, index) => (
                                 <Line
                                     key={index}
@@ -160,29 +176,35 @@ export function Co2CardGauge({
                                     strokeLinecap="round"
                                 />
                             ))}
-                            {/* Pointer */}
-                            <Line
-                                x1={gauge.cx}
-                                y1={gauge.cy}
-                                x2={pointerX}
-                                y2={pointerY}
-                                stroke="#FFFFFF"
-                                strokeWidth={6}
-                                strokeLinecap="round"
+                            {/* Arrow pointer aligned to the computed angle. */}
+                            <Path
+                                d={`M ${pointerX} ${pointerY} L ${pointerLeftX} ${pointerLeftY} L ${pointerRightX} ${pointerRightY} Z`}
+                                fill="#FFFFFF"
                             />
                         </Svg>
                     )}
+                    <View style={[styles.gaugeCenter, {top: gaugeCenterTop}]}>
+                        {isLoading ? (
+                            <Skeleton width={90} height={32} variant="rounded"/>
+                        ) : (
+                            <View style={styles.valueRow}>
+                                <Text style={styles.valueText}>{displayValue}</Text>
+                                <Text style={styles.valueUnit}>{unit}</Text>
+                            </View>
+                        )}
+                    </View>
                 </View>
 
+                {/* Range labels shown near the gap side of the gauge. */}
                 <View style={styles.rangeLabels}>
-                    <Text variant="caption">Low</Text>
-                    <Text variant="caption">High</Text>
+                    <Text variant="caption" style={styles.rangeLabelText}>{min}</Text>
+                    <Text variant="caption" style={styles.rangeLabelText}>{max}</Text>
                 </View>
             </CardContent>
 
             <CardFooter>
                 {isLoading ? (
-                    <Skeleton width="70%" height={12} variant="rounded" />
+                    <Skeleton width="70%" height={12} variant="rounded"/>
                 ) : (
                     <Text variant="caption" style={styles.note}>{derivedNote}</Text>
                 )}
@@ -201,8 +223,8 @@ const styles = StyleSheet.create({
         gap: 8
     },
     valueRow: {
-        flexDirection: 'row',
-        alignItems: 'flex-end'
+        flexDirection: 'column',
+        alignItems: 'center'
     },
     valueText: {
         fontSize: 36,
@@ -211,20 +233,31 @@ const styles = StyleSheet.create({
     },
     valueUnit: {
         fontSize: 14,
-        fontWeight: '600',
-        marginLeft: 6,
-        marginBottom: 6
+        fontWeight: '600'
     },
     gaugeWrap: {
-        alignItems: 'center'
+        alignItems: 'center',
+        position: 'relative'
     },
     skeletonGauge: {
         width: '100%'
     },
+    gaugeCenter: {
+        position: 'absolute',
+        left: 0,
+        right: 0,
+        top: 34,
+        alignItems: 'center'
+    },
     rangeLabels: {
         flexDirection: 'row',
-        justifyContent: 'space-between',
-        marginTop: -4
+        justifyContent: 'center',
+        gap: 40,
+        marginTop: -30
+    },
+    rangeLabelText: {
+        minWidth: 44,
+        textAlign: 'center'
     },
     note: {
         fontSize: 13,
