@@ -3,15 +3,15 @@ import { Co2CardGauge } from '@/components/weather/co2-card-gauge';
 import { HumidityCard } from '@/components/weather/humidity-card';
 import { LightCard } from '@/components/weather/light-card';
 import { TemperatureCard } from '@/components/weather/temperature-card';
+import { Col, Row } from '@/components/ui/grid';
 import { Separator } from "@/components/ui/separator";
 import { Text } from "@/components/ui/text";
 import { View } from "@/components/ui/view";
 import { useColor } from "@/hooks/useColor";
 import BottomSheet, { BottomSheetView } from "@gorhom/bottom-sheet";
 import { useLocalSearchParams } from "expo-router";
-import * as ScreenOrientation from "expo-screen-orientation";
 import { useEffect, useState } from "react";
-import { ScrollView, StyleSheet } from "react-native";
+import { ScrollView, StyleSheet, useWindowDimensions } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaView } from "react-native-safe-area-context";
 
@@ -67,7 +67,9 @@ export default function Teacher() {
     const [classRoomData, setClassRoomData] = useState<ClassRoomDataTeacher>(defaultClassRoomData);
     const [weatherGovData, setWeatherGovData] = useState<WeatherGovData>(defaultWeatherGovData);
     const {toast} = useToast();
-    const [isLandscape, setIsLandscape] = useState(false);
+    const {width, height} = useWindowDimensions();
+    const isLandscape = width > height;
+    const span = isLandscape ? 4 : 6;
 
     // Fetch classroom data
     useEffect(() => {
@@ -115,63 +117,29 @@ export default function Teacher() {
         return () => controller.abort();
     }, [toast]);
 
-    // Listen for screen orientation changes and update layout accordingly
-    useEffect(() => {
-        let isMounted = true;
-
-        // Function to update orientation state based on current screen orientation
-        const updateOrientation = (orientation: ScreenOrientation.Orientation) => {
-            const landscape =
-                orientation === ScreenOrientation.Orientation.LANDSCAPE_LEFT ||
-                orientation === ScreenOrientation.Orientation.LANDSCAPE_RIGHT;
-            if ( isMounted ) {
-                setIsLandscape(landscape);
-            }
-        };
-
-        // Get initial orientation and set state
-        ScreenOrientation.getOrientationAsync()
-            .then(updateOrientation)
-            .catch(() => {
-                if ( isMounted ) {
-                    setIsLandscape(false);
-                }
-            });
-
-        // Subscribe to orientation changes and update state accordingly
-        const subscription = ScreenOrientation.addOrientationChangeListener(({orientationInfo}) => {
-            updateOrientation(orientationInfo.orientation);
-        });
-
-        return () => {
-            isMounted = false;
-            subscription.remove();
-        };
-    }, []);
-
     return (
         <GestureHandlerRootView style={styles.container}>
             <SafeAreaView style={styles.screen}>
                 <ScrollView>
-                    <View style={styles.cardGrid}>
-                        <View style={[styles.cardSlot, {minWidth: '20%'}]}>
+                    <Row gutter={16} style={styles.cardGrid}>
+                        <Col span={span}>
                             <HumidityCard value={classRoomData.humidity}/>
-                        </View>
-                        <View style={[styles.cardSlot, {minWidth: '20%'}]}>
+                        </Col>
+                        <Col span={span}>
                             <TemperatureCard
                                 current={classRoomData.temperature}
                                 min={weatherGovData.minTemperature}
                                 max={weatherGovData.maxTemperature}
                                 humidity={classRoomData.humidity}
                             />
-                        </View>
-                        <View style={[styles.cardSlot, {minWidth: '20%'}]}>
+                        </Col>
+                        <Col span={span}>
                             <LightCard value={classRoomData.light} max={1000}/>
-                        </View>
-                        <View style={[styles.cardSlot, {minWidth: '20%'}]}>
-                            <Co2CardGauge value={1000} min={350} max={2000}/>
-                        </View>
-                    </View>
+                        </Col>
+                        <Col span={span}>
+                            <Co2CardGauge value={classRoomData.co2} min={350} max={2000}/>
+                        </Col>
+                    </Row>
                 </ScrollView>
             </SafeAreaView>
             <LLMBottomSheet/>
@@ -229,14 +197,7 @@ const styles = StyleSheet.create({
         paddingHorizontal: 20
     },
     cardGrid: {
-        gap: 16,
-        flexDirection: 'row',
-        flexWrap: 'wrap',
         paddingBottom: 100
-    },
-    cardSlot: {
-        flexBasis: '48%',
-        flexGrow: 1
     },
     contentContainer: {
         flex: 1,

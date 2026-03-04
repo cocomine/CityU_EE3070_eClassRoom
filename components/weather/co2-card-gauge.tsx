@@ -216,8 +216,8 @@ export function Co2CardGauge(
 
                 {/* Range labels shown near the gap side of the gauge. */}
                 <View style={styles.rangeLabels}>
-                    <Text variant="caption" style={styles.rangeLabelText}>{min}</Text>
-                    <Text variant="caption" style={styles.rangeLabelText}>{max}</Text>
+                    <Text variant="caption" style={styles.rangeLabelText}>Low</Text>
+                    <Text variant="caption" style={styles.rangeLabelText}>High</Text>
                 </View>
             </CardContent>
 
