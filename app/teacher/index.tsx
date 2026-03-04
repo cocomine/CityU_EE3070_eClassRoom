@@ -12,7 +12,7 @@ import { View } from "@/components/ui/view";
 import { useColor } from "@/hooks/useColor";
 import BottomSheet, { BottomSheetScrollView, BottomSheetView } from "@gorhom/bottom-sheet";
 import { useLocalSearchParams } from "expo-router";
-import React, { useEffect, useState } from "react";
+import { FC, useEffect, useState } from "react";
 import { FlatList, RefreshControl, ScrollView, StyleSheet, useWindowDimensions } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -235,7 +235,7 @@ function LLMBottomSheet() {
  * Component to display a horizontal list of uploaded files for the selected course.
  * @constructor
  */
-const UploadedFiles: React.FC<{ files: UploadedFile[] }> = (props) => {
+const UploadedFiles: FC<{ files: UploadedFile[] }> = (props) => {
     const [files, setFiles] = useState<UploadedFile[]>(props.files);
 
     useEffect(() => {
