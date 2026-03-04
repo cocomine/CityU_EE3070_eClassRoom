@@ -34,12 +34,13 @@ const clamp = (value: number, min: number, max: number) => {
 };
 
 const BAR = {
-    width: 220,
+    width: 260,
     height: 14,
-    x: 8,
+    x: 0,
     y: 4,
     radius: 6
 };
+const BAR_VIEW_WIDTH = BAR.width + BAR.x * 2;
 
 export function TemperatureCard(
     {
@@ -161,7 +162,7 @@ export function TemperatureCard(
                 <View style={styles.rangeWrap}>
                     {isLoading ? (
                         <Animated.View style={[styles.skeletonBar, animatedStyle]}>
-                            <Svg width="100%" height={22} viewBox="0 0 236 22">
+                            <Svg width="100%" height={22} viewBox={`0 0 ${BAR_VIEW_WIDTH} 22`}>
                                 <Rect
                                     x={BAR.x}
                                     y={BAR.y}
@@ -173,7 +174,7 @@ export function TemperatureCard(
                             </Svg>
                         </Animated.View>
                     ) : (
-                        <Svg width="100%" height={22} viewBox="0 0 236 22">
+                        <Svg width="100%" height={22} viewBox={`0 0 ${BAR_VIEW_WIDTH} 22`}>
                             <Defs>
                                 {/* Temperature gradient from cool to warm. */}
                                 <LinearGradient
@@ -272,14 +273,18 @@ const styles = StyleSheet.create({
         marginTop: -2
     },
     rangeWrap: {
-        marginTop: 6
+        marginTop: 6,
+        width: '100%',
+        paddingHorizontal: 18
     },
     skeletonBar: {
         width: '100%'
     },
     rangeLabels: {
         flexDirection: 'row',
-        justifyContent: 'space-between'
+        justifyContent: 'center',
+        gap: 180,
+        paddingHorizontal: 18
     },
     note: {
         fontSize: 13,
