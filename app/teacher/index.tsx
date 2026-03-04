@@ -1,3 +1,5 @@
+import { FileCard } from "@/components/FileCard";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/components/ui/toast";
 import { Co2CardGauge } from '@/components/weather/co2-card-gauge';
 import { HumidityCard } from '@/components/weather/humidity-card';
@@ -8,10 +10,10 @@ import { Separator } from "@/components/ui/separator";
 import { Text } from "@/components/ui/text";
 import { View } from "@/components/ui/view";
 import { useColor } from "@/hooks/useColor";
-import BottomSheet, { BottomSheetView } from "@gorhom/bottom-sheet";
+import BottomSheet, { BottomSheetScrollView, BottomSheetView } from "@gorhom/bottom-sheet";
 import { useLocalSearchParams } from "expo-router";
-import { useEffect, useState } from "react";
-import { ScrollView, StyleSheet, useWindowDimensions } from "react-native";
+import React, { useEffect, useState } from "react";
+import { FlatList, RefreshControl, ScrollView, StyleSheet, useWindowDimensions } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaView } from "react-native-safe-area-context";
 
@@ -22,6 +24,17 @@ const FakeClassRoom: ClassRoomDataTeacher = {
     humidity: 80,
     light: 500
 };
+const FakeUploadedFiles: UploadedFile[] = [
+    {id: '1', name: 'Lecture 1 Slides.pdf'},
+    {id: '2', name: 'Lecture 2 Slides.pdf'},
+    {id: '3', name: 'Assignment 1.docx'}
+];
+
+// Uploaded file data structure
+export interface UploadedFile {
+    id: string;
+    name: string;
+}
 
 // Teacher selected course data structure
 export interface CourseDataTeacher {
@@ -63,6 +76,11 @@ const defaultWeatherGovData: WeatherGovData = {
     minTemperature: null
 };
 
+/**
+ * Teacher screen component that displays classroom environmental data and course details.
+ * Fetches data from backend and weather API, and handles loading states with skeletons.
+ * @constructor
+ */
 export default function Teacher() {
     const [classRoomData, setClassRoomData] = useState<ClassRoomDataTeacher>(defaultClassRoomData);
     const [weatherGovData, setWeatherGovData] = useState<WeatherGovData>(defaultWeatherGovData);
@@ -147,19 +165,26 @@ export default function Teacher() {
     );
 }
 
+/** Bottom sheet component that displays course details and uploaded files for the selected course.
+ * Fetches data from backend and handles loading states with skeletons.
+ * @constructor
+ */
 function LLMBottomSheet() {
     const {courseId} = useLocalSearchParams<{ courseId: string }>();
     const bottomSheetBackgroundColor = useColor('card');
     const bottomSheetHandleColor = useColor('muted');
     const [courseData, setCourseData] = useState<CourseDataTeacher>(defaultCourseData);
+    const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[] | null>(null);
 
     // Fetch course details
     useEffect(() => {
         //TODO: fetch course title from backend
+        //TODO: fetch uploaded files for the course from backend
 
         // Simulate fetching course details from backend with a delay
         setTimeout(() => {
             setCourseData({...FakeCourse, courseId});
+            setUploadedFiles({...FakeUploadedFiles});
         }, 1000);
     }, [courseId]);
 
@@ -172,21 +197,63 @@ function LLMBottomSheet() {
             <BottomSheetView style={styles.contentContainer}>
                 <View style={styles.infoContainer}>
                     <View>
-                        <Text variant={'subtitle'}>Course: {courseData.title}</Text>
+                        {courseData.title ? (
+                            <Text variant={'subtitle'}>Course: {courseData.title}</Text>
+                        ) : (
+                            <Skeleton width={200} height={24}/>
+                        )}
                     </View>
                     <View>
                         <Text variant={'caption'}>ID: {courseId}</Text>
                     </View>
                 </View>
-                <Separator style={{marginBottom: 10}}/>
-                <View>
-                    <Text variant={'body'}>This is the content of the bottom sheet. You can put any content here,
-                        such as course details, student lists, or settings.</Text>
-                </View>
+                <Separator/>
+                <BottomSheetScrollView
+                    refreshControl={
+                        <RefreshControl refreshing={false} onRefresh={() => {}}/>
+                    }
+                    nestedScrollEnabled={true}
+                >
+                    <View style={{marginTop: 15}}>
+                        <Text variant={'title'}>Uploaded files</Text>
+                        <View style={{marginTop: 10}}>
+                            {uploadedFiles === null ? (
+                                <Skeleton width={'100%'} height={60}/>
+                            ) : (
+                                <UploadedFiles files={FakeUploadedFiles}/>
+                            )}
+                        </View>
+                    </View>
+                    <Separator style={{marginVertical: 15}}/>
+                </BottomSheetScrollView>
             </BottomSheetView>
         </BottomSheet>
     );
 }
+
+/**
+ * Component to display a horizontal list of uploaded files for the selected course.
+ * @constructor
+ */
+const UploadedFiles: React.FC<{ files: UploadedFile[] }> = (props) => {
+    const [files, setFiles] = useState<UploadedFile[]>(props.files);
+
+    useEffect(() => {
+        setFiles(props.files);
+    }, [props.files]);
+
+    return (
+        <FlatList
+            data={files}
+            horizontal={true}
+            renderItem={({item}) => <FileCard filename={item.name}/>}
+            keyExtractor={(item) => item.id}
+            ListEmptyComponent={<Text variant={'caption'}>No files uploaded yet.</Text>}
+            ItemSeparatorComponent={props => <View style={{width: 10}} {...props}/>}
+        />
+    );
+};
+
 
 const styles = StyleSheet.create({
     container: {
@@ -208,5 +275,6 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center'
-    }
+    },
+    uploadedFilesContainer: {}
 });

@@ -4,7 +4,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Text } from '@/components/ui/text';
 import { View } from '@/components/ui/view';
 import { useColor } from '@/hooks/useColor';
-import { Gauge } from 'lucide-react-native';
+import { Cloud } from 'lucide-react-native';
 import React, { useEffect, useMemo } from 'react';
 import { StyleSheet, ViewStyle } from 'react-native';
 import Animated, {
@@ -83,7 +83,7 @@ export function Co2CardGauge(
     };
     const gaugeViewBox = `0 0 ${gauge.width} 240`;
     // Vertical offset that visually centers the value in the ring.
-    const gaugeCenterTop = gauge.cy - 30;
+    const gaugeCenterTop = gauge.cy - 42;
 
     const tickColors = {
         good: '#34D399',
@@ -157,7 +157,7 @@ export function Co2CardGauge(
     return (
         <Card style={style}>
             <CardHeader style={styles.headerRow}>
-                <Icon name={Gauge} size={18} color="#E5E7EB"/>
+                <Icon name={Cloud} size={18} color="#E5E7EB"/>
                 <Text variant="body">CO2</Text>
             </CardHeader>
 

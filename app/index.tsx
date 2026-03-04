@@ -2,7 +2,7 @@ import { View } from "@/components/ui/view";
 import { Text } from "@/components/ui/text";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Button } from "@/components/ui/button";
-import { StyleSheet, TextInputProps, TextInputSubmitEditingEvent, TouchableOpacity } from "react-native";
+import { StyleSheet, TextInputProps, TouchableOpacity } from "react-native";
 import { BottomSheet, useBottomSheet } from '@/components/ui/bottom-sheet';
 import { InputOTP, InputOTPProps } from "@/components/ui/input-otp";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -160,7 +160,7 @@ function TeacherBottomSheet({isVisible, onClose}: { isVisible: boolean, onClose:
         setTimeout(() => {
             setCourseList(FakeCourse);
             //setCourseList([]) // for testing empty course list
-        }, 5000);
+        }, 1000);
     }, []);
 
     return (
