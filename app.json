@@ -10,7 +10,8 @@
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
-        "bundleIdentifier": "cc.cocomine.eclassroom"
+      "bundleIdentifier": "cc.cocomine.eclassroom",
+      "usesIcloudStorage": true
     },
     "android": {
       "adaptiveIcon": {
@@ -44,6 +45,12 @@
         "expo-screen-orientation",
         {
           "initialOrientation": "DEFAULT"
+        }
+      ],
+      [
+        "expo-document-picker",
+        {
+          "iCloudContainerEnvironment": "Production"
         }
       ]
     ],

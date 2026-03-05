@@ -1,17 +1,17 @@
-import { View } from "@/components/ui/view";
-import { Text } from "@/components/ui/text";
-import { SafeAreaView } from "react-native-safe-area-context";
-import { Button } from "@/components/ui/button";
-import { StyleSheet, TextInputProps, TouchableOpacity } from "react-native";
 import { BottomSheet, useBottomSheet } from '@/components/ui/bottom-sheet';
-import { InputOTP, InputOTPProps } from "@/components/ui/input-otp";
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { useRouter } from "expo-router";
-import { Separator } from "@/components/ui/separator";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { InputOTP, InputOTPProps } from "@/components/ui/input-otp";
+import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
-import { wait } from "@/constants/wait";
 import { LoadingOverlay, Spinner } from "@/components/ui/spinner";
+import { Text } from "@/components/ui/text";
+import { View } from "@/components/ui/view";
+import { wait } from "@/utils/wait";
+import { useRouter } from "expo-router";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { StyleSheet, TextInputProps, TouchableOpacity } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 const FakeCourse = [
     {id: '123456', title: 'EE1000'},

@@ -1,5 +1,7 @@
-import { FileCard } from "@/components/FileCard";
+import { FileCard, FileUploadingCard } from "@/components/FileCard";
+import { Button } from "@/components/ui/button";
 import { Col, Row } from '@/components/ui/grid';
+import { Icon } from "@/components/ui/icon";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Text } from "@/components/ui/text";
@@ -12,11 +14,14 @@ import { TemperatureCard } from '@/components/weather/temperature-card';
 import { useColor } from "@/hooks/useColor";
 import { FILE_EXTENSIONS } from "@/utils/file-meta";
 import BottomSheet, { BottomSheetScrollView, BottomSheetView } from "@gorhom/bottom-sheet";
+import { getDocumentAsync } from "expo-document-picker";
 import { useLocalSearchParams } from "expo-router";
-import { useCallback, useEffect, useState } from "react";
+import { Upload } from "lucide-react-native";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { FlatList, RefreshControl, ScrollView, StyleSheet, useWindowDimensions } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaView } from "react-native-safe-area-context";
+
 
 const FakeCourse: CourseDataTeacher = {title: 'Fake Course', courseId: '123456'};
 const FakeClassRoom: ClassRoomDataTeacher = {
@@ -26,10 +31,10 @@ const FakeClassRoom: ClassRoomDataTeacher = {
     light: 500
 };
 const FakeUploadedFiles: UploadedFile[] = [
-    ...FILE_EXTENSIONS.map((ext, index) => ({
-        id: String(index + 1),
-        name: `Sample.${ext}`
-    })),
+    /*...FILE_EXTENSIONS.map((ext, index) => ({
+     id: String(index + 1),
+     name: `Sample.${ext}`
+     })),*/
     {
         id: String(FILE_EXTENSIONS.length + 1),
         name: 'README'
@@ -44,6 +49,21 @@ const FakeUploadedFiles: UploadedFile[] = [
 export interface UploadedFile {
     id: string;
     name: string;
+}
+
+// File upload request data structure
+export interface UploadFileRequest {
+    id: string;
+    file: {
+        uri: string;
+        mimeType?: string;
+        size?: number;
+        name: string;
+    },
+    progress: number;
+    status: 'uploading' | 'failed';
+    error?: string;
+    simulateFailAt?: number; // For simulation purposes only; remove when real upload status is available from backend.
 }
 
 // Teacher selected course data structure
@@ -184,24 +204,14 @@ function LLMBottomSheet() {
     const bottomSheetBackgroundColor = useColor('card');
     const bottomSheetHandleColor = useColor('muted');
     const [courseData, setCourseData] = useState<CourseDataTeacher>(defaultCourseData);
-    const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[] | null>(null);
-
-    // Callback to handle file deletion
-    const deleteFile = useCallback((id: string) => {
-        console.log("Deleting file with id: ", id);
-        //TODO: send delete request to backend to delete the file with the given id
-        setUploadedFiles(prevState => prevState ? prevState.filter(file => file.id !== id) : null);
-    }, []);
 
     // Fetch course details
     useEffect(() => {
         //TODO: fetch course title from backend
-        //TODO: fetch uploaded files for the course from backend
 
         // Simulate fetching course details from backend with a delay
         setTimeout(() => {
             setCourseData({...FakeCourse, courseId});
-            setUploadedFiles([...FakeUploadedFiles]);
         }, 1000);
     }, [courseId]);
 
@@ -229,21 +239,12 @@ function LLMBottomSheet() {
                 </View>
                 <Separator style={{marginVertical: 15}}/>
                 <BottomSheetScrollView
+                    style={{flex: 1}}
                     refreshControl={
-                        <RefreshControl refreshing={false} onRefresh={() => {}}/>
-                    }
+                        <RefreshControl refreshing={false} onRefresh={() => {}}/>}
                     nestedScrollEnabled={true}
                 >
-                    <View>
-                        <Text variant={'title'}>Uploaded files</Text>
-                        <View style={{marginTop: 10}}>
-                            {uploadedFiles === null ? (
-                                <Skeleton width={'100%'} height={60}/>
-                            ) : (
-                                <UploadedFiles files={uploadedFiles} onDelete={deleteFile}/>
-                            )}
-                        </View>
-                    </View>
+                    <UploadedFiles/>
                     <Separator style={{marginVertical: 15}}/>
                 </BottomSheetScrollView>
             </BottomSheetView>
@@ -255,26 +256,207 @@ function LLMBottomSheet() {
  * Component to display a horizontal list of uploaded files for the selected course.
  * @constructor
  */
-function UploadedFiles(props:{ files: UploadedFile[], onDelete?: (id: string) => void }) {
-    const [files, setFiles] = useState<UploadedFile[]>(props.files);
+function UploadedFiles() {
+    const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[] | null>(null);
+    const {courseId} = useLocalSearchParams<{ courseId: string }>();
+    const [uploadRequests, setUploadRequests] = useState<UploadFileRequest[]>([]);
+    // Track timers per upload so we can cancel or clean them up.
+    const uploadTimers = useRef<Map<string, ReturnType<typeof setInterval>>>(new Map());
 
-    // Update local state when props.files changes
+    // Unique id for each upload request to tie UI state to timers.
+    const createUploadId = useCallback(() => {
+        return `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+    }, []);
+
+    // Callback to handle file deletion
+    const deleteFile = useCallback((id: string) => {
+        console.log("Deleting file with id: ", id);
+
+        //TODO: send delete request to backend to delete the file with the given id
+        setUploadedFiles(prevState => prevState ? prevState.filter(file => file.id !== id) : null);
+    }, []);
+
+    // Simulate upload progress with a timer; on completion move to uploaded list.
+    // TODO: replace this with a real upload request, and update progress from network callbacks.
+    const startUploadSimulation = useCallback((uploadId: string) => {
+        if ( uploadTimers.current.has(uploadId) ) return;
+        const timerId = setInterval(() => {
+            setUploadRequests(prevState => {
+                const index = prevState.findIndex(item => item.id === uploadId);
+                if ( index === -1 ) return prevState;
+
+                const current = prevState[index];
+                if ( current.status === 'failed' ) return prevState;
+                const increment = 5 + Math.floor(Math.random() * 12);
+                const nextProgress = Math.min(100, current.progress + increment);
+
+                if ( current.simulateFailAt !== undefined && nextProgress >= current.simulateFailAt ) {
+                    clearInterval(timerId);
+                    uploadTimers.current.delete(uploadId);
+
+                    const nextState = [...prevState];
+                    nextState[index] = {
+                        ...current,
+                        progress: current.simulateFailAt,
+                        status: 'failed',
+                        error: 'Upload failed (simulated).'
+                    };
+                    return nextState;
+                }
+
+                if ( nextProgress >= 100 ) {
+                    clearInterval(timerId);
+                    uploadTimers.current.delete(uploadId);
+
+                    setUploadedFiles(prevUploaded => {
+                        const base = prevUploaded ?? [];
+                        // TODO: replace uploadId with server-provided file id after a real upload succeeds.
+                        return [{id: uploadId, name: current.file.name}, ...base];
+                    });
+
+                    const nextState = [...prevState];
+                    nextState.splice(index, 1);
+                    return nextState;
+                }
+
+                const nextState = [...prevState];
+                nextState[index] = {...current, progress: nextProgress};
+                return nextState;
+            });
+        }, 400);
+        uploadTimers.current.set(uploadId, timerId);
+    }, []);
+
+    // Stop the timer and remove the upload card when user cancels.
+    const cancelUpload = useCallback((uploadId: string) => {
+        // TODO: abort the real upload request when backend is wired up.
+        const timerId = uploadTimers.current.get(uploadId);
+        if ( timerId ) {
+            clearInterval(timerId);
+            uploadTimers.current.delete(uploadId);
+        }
+
+        // Remove the upload card from the list.
+        setUploadRequests(prevState => prevState.filter(item => item.id !== uploadId));
+    }, []);
+
+    // Pick files and enqueue them for simulated uploading.
+    const pickFiles = useCallback(async () => {
+        const result = await getDocumentAsync({
+            multiple: true,
+            copyToCacheDirectory: true
+        });
+        console.debug(result); //debug
+        if ( result.canceled ) return;
+
+        // Map picked files to upload requests with simulated progress and random failure.
+        // TODO: start real upload per file and map progress to `uploadRequests` when backend is available.
+        const newRequests: UploadFileRequest[] = result.assets.map(item => {
+            // Simulate a random failure for some uploads to demonstrate error handling in the UI.
+            // Remove this when real upload status is available from backend.
+            const shouldFail = Math.random() < 0.25;
+            const failAt = shouldFail ? 20 + Math.floor(Math.random() * 60) : undefined;
+
+            return {
+                id: createUploadId(),
+                progress: 0,
+                status: 'uploading',
+                error: undefined,
+                simulateFailAt: failAt, // For simulation purposes only; remove when real upload status is available from backend.
+                file: {
+                    uri: item.uri,
+                    name: item.name,
+                    mimeType: item.mimeType,
+                    size: item.size
+                }
+            };
+        });
+
+        // Enqueue new uploads and start their simulation.
+        setUploadRequests(prevState => [...prevState, ...newRequests]);
+        // Start upload simulation for each new request. In a real implementation, this would be triggered by the actual upload logic and progress callbacks instead.
+        newRequests.forEach(request => startUploadSimulation(request.id));
+    }, [createUploadId, startUploadSimulation]);
+
+    // Fetch course details
     useEffect(() => {
-        setFiles(props.files);
-    }, [props.files]);
+        // TODO: fetch uploaded files for the course from backend
+
+        // Simulate fetching course details from backend with a delay
+        setTimeout(() => {
+            setUploadedFiles(prevState => {
+                if ( prevState === null ) return [...FakeUploadedFiles];
+
+                // Merge existing uploaded files with fetched files, avoiding duplicates.
+                const existingIds = new Set(prevState.map(item => item.id));
+                const merged = [...prevState];
+                FakeUploadedFiles.forEach(item => {
+                    if ( !existingIds.has(item.id) ) merged.push(item);
+                });
+                return merged;
+            });
+        }, 1000);
+    }, [courseId]);
+
+    // Cleanup any running timers when the component unmounts.
+    useEffect(() => {
+        return () => {
+            //TODO: also abort any real upload requests when backend is wired up.
+            uploadTimers.current.forEach(timerId => clearInterval(timerId));
+            uploadTimers.current.clear();
+        };
+    }, []);
 
     return (
-        <FlatList
-            style={{paddingBottom: 8}}
-            data={files}
-            horizontal={true}
-            renderItem={({item}) =>
-                <FileCard filename={item.name} onClick={() => props.onDelete?.(item.id)}/>}
-            keyExtractor={(item) => item.id}
-            ListEmptyComponent={<Text variant={'caption'}>No files uploaded yet.</Text>}
-            ItemSeparatorComponent={props => <View style={{width: 10}} {...props}/>}
-            ListHeaderComponent={<FileCard filename={"test"}/>}
-        />
+        <View>
+            <View style={styles.uploadedFilesTitleContainer}>
+                <Text variant={'title'}>Uploaded files</Text>
+                <Button variant={'outline'} size={'sm'} onPress={pickFiles}>
+                    <Icon name={Upload} size={14}/>
+                    <Text style={{fontSize: 14}}>Select files to upload</Text>
+                </Button>
+            </View>
+            <View style={{marginTop: 10}}>
+                {uploadedFiles === null && uploadRequests.length === 0 ? (
+                    // Show skeleton only when there are no uploads in progress and uploaded files are still loading.
+                    <Skeleton width={'100%'} height={60}/>
+                ) : (
+                    // Show both uploading files and already uploaded files in a horizontal list.
+                    <FlatList
+                        style={{paddingBottom: 8}}
+                        horizontal={true}
+                        data={[
+                            // uploads in progress
+                            ...uploadRequests.map(item => ({type: 'upload' as const, item})),
+                            // already uploaded files
+                            ...(uploadedFiles ?? []).map(item => ({type: 'uploaded' as const, item}))
+                        ]}
+                        renderItem={({item}) =>
+                            item.type === 'upload' ? (
+                                <FileUploadingCard
+                                    file={item.item}
+                                    onCancel={() => cancelUpload(item.item.id)}
+                                />
+                            ) : (
+                                <FileCard
+                                    filename={item.item.name}
+                                    onClick={() => deleteFile(item.item.id)}
+                                />
+                            )
+                        }
+                        keyExtractor={(item) =>
+                            item.type === 'upload'
+                                ? `upload-${item.item.id}`
+                                : `uploaded-${item.item.id}`
+                        }
+                        ListEmptyComponent={
+                            <Text variant={'caption'}>No files uploaded yet.</Text>
+                        }
+                        ItemSeparatorComponent={props => <View style={{width: 10}} {...props}/>}
+                    />
+                )}
+            </View>
+        </View>
     );
 };
 
@@ -300,5 +482,10 @@ const styles = StyleSheet.create({
         justifyContent: 'space-between',
         alignItems: 'center'
     },
-    uploadedFilesContainer: {}
+    uploadedFilesTitleContainer: {
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 10,
+        justifyContent: 'space-between'
+    }
 });
