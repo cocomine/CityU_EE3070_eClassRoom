@@ -52,6 +52,13 @@
         {
           "iCloudContainerEnvironment": "Production"
         }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "The app accesses your photos to let you upload images to conversations",
+          "microphonePermission": false
+        }
       ]
     ],
     "experiments": {

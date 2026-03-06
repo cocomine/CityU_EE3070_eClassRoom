@@ -1,12 +1,16 @@
+import { View } from "@/components/ui/view";
 import React from 'react';
-import { View, ViewStyle } from 'react-native';
+import { type StyleProp, type ViewStyle } from 'react-native';
 
 type RowProps = {
   children: React.ReactNode;
   gutter?: number;
-  style?: ViewStyle;
+  style?: StyleProp<ViewStyle>;
 };
 
+// Row acts like a 12-column container: it wraps children and applies negative
+// margins so each Col can add equal left/right padding (gutter) without
+// increasing the overall row width.
 export function Row({ children, gutter = 16, style }: RowProps) {
   return (
     <View
@@ -21,6 +25,7 @@ export function Row({ children, gutter = 16, style }: RowProps) {
     >
       {React.Children.map(children, (child) => {
         if (!React.isValidElement(child)) return child;
+        // Pass the gutter down so each Col can apply matching horizontal padding.
         return React.cloneElement(child, { gutter } as { gutter: number });
       })}
     </View>
@@ -30,12 +35,15 @@ export function Row({ children, gutter = 16, style }: RowProps) {
 type ColProps = {
   span: number; // 1..12
   gutter?: number;
-  style?: ViewStyle;
+  style?: StyleProp<ViewStyle>;
   children: React.ReactNode;
 };
 
+// Col consumes a portion of the 12-column grid. Width is computed by
+// span/12 and expressed as a percentage so it responds to container size.
 export function Col({ span, gutter = 16, style, children }: ColProps) {
-  const width = `${Math.max(1, Math.min(12, span)) * (100 / 12)}%`;
+  const clampedSpan = Math.max(1, Math.min(12, span));
+  const width = `${(clampedSpan * 100) / 12}%` as `${number}%`;
   return (
     <View
       style={[

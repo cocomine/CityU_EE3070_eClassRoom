@@ -1,4 +1,6 @@
 import { FileCard, FileUploadingCard } from "@/components/FileCard";
+import { useActionSheet } from "@/components/ui/action-sheet";
+import { showErrorAlert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Col, Row } from '@/components/ui/grid';
 import { Icon } from "@/components/ui/icon";
@@ -15,8 +17,9 @@ import { useColor } from "@/hooks/useColor";
 import { FILE_EXTENSIONS } from "@/utils/file-meta";
 import BottomSheet, { BottomSheetScrollView, BottomSheetView } from "@gorhom/bottom-sheet";
 import { getDocumentAsync } from "expo-document-picker";
+import { launchImageLibraryAsync, requestMediaLibraryPermissionsAsync } from "expo-image-picker";
 import { useLocalSearchParams } from "expo-router";
-import { Upload } from "lucide-react-native";
+import { FileImage, FileText, Upload } from "lucide-react-native";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { FlatList, RefreshControl, ScrollView, StyleSheet, useWindowDimensions } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
@@ -167,7 +170,7 @@ export default function Teacher() {
 
     return (
         <GestureHandlerRootView style={styles.container}>
-            <SafeAreaView style={styles.screen}>
+            <SafeAreaView style={styles.container} edges={['left', 'right']}>
                 <ScrollView>
                     <Row gutter={16} style={styles.cardGrid}>
                         <Col span={span}>
@@ -260,6 +263,8 @@ function UploadedFiles() {
     const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[] | null>(null);
     const {courseId} = useLocalSearchParams<{ courseId: string }>();
     const [uploadRequests, setUploadRequests] = useState<UploadFileRequest[]>([]);
+    const {show, ActionSheet} = useActionSheet();
+
     // Track timers per upload so we can cancel or clean them up.
     const uploadTimers = useRef<Map<string, ReturnType<typeof setInterval>>>(new Map());
 
@@ -362,7 +367,8 @@ function UploadedFiles() {
                 progress: 0,
                 status: 'uploading',
                 error: undefined,
-                simulateFailAt: failAt, // For simulation purposes only; remove when real upload status is available from backend.
+                simulateFailAt: failAt, // For simulation purposes only; remove when real upload status is available
+                                        // from backend.
                 file: {
                     uri: item.uri,
                     name: item.name,
@@ -374,9 +380,83 @@ function UploadedFiles() {
 
         // Enqueue new uploads and start their simulation.
         setUploadRequests(prevState => [...prevState, ...newRequests]);
-        // Start upload simulation for each new request. In a real implementation, this would be triggered by the actual upload logic and progress callbacks instead.
+        // Start upload simulation for each new request. In a real implementation, this would be triggered by the
+        // actual upload logic and progress callbacks instead.
         newRequests.forEach(request => startUploadSimulation(request.id));
     }, [createUploadId, startUploadSimulation]);
+
+    const pickMedia = useCallback(async () => {
+        // Request permission to access media library first, as it's required for picking images or videos.
+        // This is especially important on mobile platforms where permissions are enforced at runtime.
+        const permissionResult = await requestMediaLibraryPermissionsAsync();
+
+        // Check if permission was granted before proceeding. If not, show an error alert and return early.
+        if ( !permissionResult.granted ) {
+            showErrorAlert(
+                "Permission denied",
+                "Permission to access media library is required to upload files. " +
+                "Please enable it in your device settings."
+            );
+            return;
+        }
+
+        // Now that we have permission, we can safely launch the image library to pick media files.
+        const result = await launchImageLibraryAsync({
+            mediaTypes: ['images', 'videos'],
+        });
+        console.debug(result); //debug
+        if ( result.canceled ) return;
+
+        // Map picked files to upload requests with simulated progress and random failure.
+        // TODO: start real upload per file and map progress to `uploadRequests` when backend is available.
+        const newRequests: UploadFileRequest[] = result.assets.map(item => {
+            // Simulate a random failure for some uploads to demonstrate error handling in the UI.
+            // Remove this when real upload status is available from backend.
+            const shouldFail = Math.random() < 0.25;
+            const failAt = shouldFail ? 20 + Math.floor(Math.random() * 60) : undefined;
+
+            return {
+                id: createUploadId(),
+                progress: 0,
+                status: 'uploading',
+                error: undefined,
+                simulateFailAt: failAt, // For simulation purposes only; remove when real upload status is available
+                                        // from backend.
+                file: {
+                    uri: item.uri,
+                    name: item.fileName || createUploadId(),
+                    mimeType: item.mimeType,
+                    size: item.fileSize
+                }
+            };
+        });
+
+        // Enqueue new uploads and start their simulation.
+        setUploadRequests(prevState => [...prevState, ...newRequests]);
+        // Start upload simulation for each new request. In a real implementation, this would be triggered by the
+        // actual upload logic and progress callbacks instead.
+        newRequests.forEach(request => startUploadSimulation(request.id));
+    }, [createUploadId, startUploadSimulation]);
+
+    // Show action sheet with options to pick files or media when upload button is pressed.
+    const onUploadPress = useCallback(() => {
+        show({
+            title: 'Upload files',
+            message: 'Select files to upload for this course.',
+            options: [
+                {
+                    icon: <Icon name={FileText}/>,
+                    title: 'Upload Document',
+                    onPress: pickFiles
+                },
+                {
+                    icon: <Icon name={FileImage}/>,
+                    title: "Upload Media",
+                    onPress: pickMedia
+                }
+            ]
+        });
+    }, [pickFiles, pickMedia, show]);
 
     // Fetch course details
     useEffect(() => {
@@ -408,55 +488,61 @@ function UploadedFiles() {
     }, []);
 
     return (
-        <View>
-            <View style={styles.uploadedFilesTitleContainer}>
-                <Text variant={'title'}>Uploaded files</Text>
-                <Button variant={'outline'} size={'sm'} onPress={pickFiles}>
-                    <Icon name={Upload} size={14}/>
-                    <Text style={{fontSize: 14}}>Select files to upload</Text>
-                </Button>
+        <>
+            <View>
+                <View style={styles.uploadedFilesTitleContainer}>
+                    <Text variant={'title'}>Uploaded files</Text>
+                    <Button variant={'outline'} size={'sm'} onPress={onUploadPress}>
+                        <Icon name={Upload} size={14}/>
+                        <Text style={{fontSize: 14}}>Select files to upload</Text>
+                    </Button>
+                </View>
+                <View style={{marginTop: 10}}>
+                    {uploadedFiles === null && uploadRequests.length === 0 ? (
+                        // Show skeleton only when there are no uploads in progress and uploaded files are still
+                        // loading.
+                        <Skeleton width={'100%'} height={60}/>
+                    ) : (
+                        // Show both uploading files and already uploaded files in a horizontal list.
+                        <FlatList
+                            style={{paddingBottom: 8}}
+                            horizontal={true}
+                            data={[
+                                // uploading files
+                                ...uploadRequests.map(item => ({type: 'uploading' as const, item})),
+                                // already uploaded files
+                                ...(uploadedFiles ?? []).map(item => ({type: 'uploaded' as const, item}))
+                            ]}
+                            renderItem={({item}) =>
+                                item.type === 'uploading' ? (
+                                    // uploading files
+                                    <FileUploadingCard
+                                        file={item.item}
+                                        onCancel={() => cancelUpload(item.item.id)}
+                                    />
+                                ) : (
+                                    // already uploaded files
+                                    <FileCard
+                                        filename={item.item.name}
+                                        onClick={() => deleteFile(item.item.id)}
+                                    />
+                                )
+                            }
+                            keyExtractor={(item) =>
+                                item.type === 'uploading'
+                                    ? `uploading-${item.item.id}`
+                                    : `uploaded-${item.item.id}`
+                            }
+                            ListEmptyComponent={
+                                <Text variant={'caption'}>No files uploaded yet.</Text>
+                            }
+                            ItemSeparatorComponent={props => <View style={{width: 10}} {...props}/>}
+                        />
+                    )}
+                </View>
             </View>
-            <View style={{marginTop: 10}}>
-                {uploadedFiles === null && uploadRequests.length === 0 ? (
-                    // Show skeleton only when there are no uploads in progress and uploaded files are still loading.
-                    <Skeleton width={'100%'} height={60}/>
-                ) : (
-                    // Show both uploading files and already uploaded files in a horizontal list.
-                    <FlatList
-                        style={{paddingBottom: 8}}
-                        horizontal={true}
-                        data={[
-                            // uploads in progress
-                            ...uploadRequests.map(item => ({type: 'upload' as const, item})),
-                            // already uploaded files
-                            ...(uploadedFiles ?? []).map(item => ({type: 'uploaded' as const, item}))
-                        ]}
-                        renderItem={({item}) =>
-                            item.type === 'upload' ? (
-                                <FileUploadingCard
-                                    file={item.item}
-                                    onCancel={() => cancelUpload(item.item.id)}
-                                />
-                            ) : (
-                                <FileCard
-                                    filename={item.item.name}
-                                    onClick={() => deleteFile(item.item.id)}
-                                />
-                            )
-                        }
-                        keyExtractor={(item) =>
-                            item.type === 'upload'
-                                ? `upload-${item.item.id}`
-                                : `uploaded-${item.item.id}`
-                        }
-                        ListEmptyComponent={
-                            <Text variant={'caption'}>No files uploaded yet.</Text>
-                        }
-                        ItemSeparatorComponent={props => <View style={{width: 10}} {...props}/>}
-                    />
-                )}
-            </View>
-        </View>
+            {ActionSheet}
+        </>
     );
 };
 
@@ -465,11 +551,9 @@ const styles = StyleSheet.create({
     container: {
         flex: 1
     },
-    screen: {
-        flex: 1,
-        paddingHorizontal: 20
-    },
     cardGrid: {
+        paddingTop: 20,
+        paddingHorizontal: 20,
         paddingBottom: 100
     },
     contentContainer: {
