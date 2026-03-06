@@ -17,9 +17,14 @@ import { useColor } from "@/hooks/useColor";
 import { FILE_EXTENSIONS } from "@/utils/file-meta";
 import BottomSheet, { BottomSheetScrollView, BottomSheetView } from "@gorhom/bottom-sheet";
 import { getDocumentAsync } from "expo-document-picker";
-import { launchImageLibraryAsync, requestMediaLibraryPermissionsAsync } from "expo-image-picker";
+import {
+    launchCameraAsync,
+    launchImageLibraryAsync,
+    requestCameraPermissionsAsync,
+    requestMediaLibraryPermissionsAsync
+} from "expo-image-picker";
 import { useLocalSearchParams } from "expo-router";
-import { FileImage, FileText, Upload } from "lucide-react-native";
+import { Camera, FileImage, FileText, Upload } from "lucide-react-native";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { FlatList, RefreshControl, ScrollView, StyleSheet, useWindowDimensions } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
@@ -385,6 +390,7 @@ function UploadedFiles() {
         newRequests.forEach(request => startUploadSimulation(request.id));
     }, [createUploadId, startUploadSimulation]);
 
+    // Pick media files and enqueue them for simulated uploading.
     const pickMedia = useCallback(async () => {
         // Request permission to access media library first, as it's required for picking images or videos.
         // This is especially important on mobile platforms where permissions are enforced at runtime.
@@ -400,9 +406,10 @@ function UploadedFiles() {
             return;
         }
 
-        // Now that we have permission, we can safely launch the image library to pick media files.
+        // launch the image library to pick media files.
         const result = await launchImageLibraryAsync({
             mediaTypes: ['images', 'videos'],
+            allowsMultipleSelection: true
         });
         console.debug(result); //debug
         if ( result.canceled ) return;
@@ -438,7 +445,63 @@ function UploadedFiles() {
         newRequests.forEach(request => startUploadSimulation(request.id));
     }, [createUploadId, startUploadSimulation]);
 
+    // Open camera to take a photo and enqueue it for simulated uploading.
+    //todo
+    const openCamera = useCallback(async () => {
+        // Permission to access camera is required to take photos, so we request it at runtime before launching the camera.
+        const permissionResult = await requestCameraPermissionsAsync();
+
+        // Check if permission was granted before proceeding. If not, show an error alert and return early.
+        if ( !permissionResult.granted ) {
+            showErrorAlert(
+                "Permission denied",
+                "Permission to access camera is required to take photos. " +
+                "Please enable it in your device settings."
+            );
+            return;
+        }
+
+        // Now that we have permission, we can safely launch the image library to pick media files.
+        const result = await launchCameraAsync({
+            mediaTypes: ['images', 'videos'],
+            allowsMultipleSelection: true
+        });
+        console.debug(result); //debug
+        if ( result.canceled ) return;
+
+        // Map picked files to upload requests with simulated progress and random failure.
+        // TODO: start real upload per file and map progress to `uploadRequests` when backend is available.
+        const newRequests: UploadFileRequest[] = result.assets.map(item => {
+            // Simulate a random failure for some uploads to demonstrate error handling in the UI.
+            // Remove this when real upload status is available from backend.
+            const shouldFail = Math.random() < 0.25;
+            const failAt = shouldFail ? 20 + Math.floor(Math.random() * 60) : undefined;
+
+            return {
+                id: createUploadId(),
+                progress: 0,
+                status: 'uploading',
+                error: undefined,
+                simulateFailAt: failAt, // For simulation purposes only; remove when real upload status is available
+                                        // from backend.
+                file: {
+                    uri: item.uri,
+                    name: item.fileName || createUploadId(),//todo
+                    mimeType: item.mimeType,
+                    size: item.fileSize
+                }
+            };
+        });
+
+        // Enqueue new uploads and start their simulation.
+        setUploadRequests(prevState => [...prevState, ...newRequests]);
+        // Start upload simulation for each new request. In a real implementation, this would be triggered by the
+        // actual upload logic and progress callbacks instead.
+        newRequests.forEach(request => startUploadSimulation(request.id));
+    }, [createUploadId, startUploadSimulation]);
+
     // Show action sheet with options to pick files or media when upload button is pressed.
+    //todo
     const onUploadPress = useCallback(() => {
         show({
             title: 'Upload files',
@@ -453,10 +516,15 @@ function UploadedFiles() {
                     icon: <Icon name={FileImage}/>,
                     title: "Upload Media",
                     onPress: pickMedia
+                },
+                {
+                    title: 'Take Photo',
+                    icon: <Icon name={Camera}/>,
+                    onPress: openCamera
                 }
             ]
         });
-    }, [pickFiles, pickMedia, show]);
+    }, [openCamera, pickFiles, pickMedia, show]);
 
     // Fetch course details
     useEffect(() => {

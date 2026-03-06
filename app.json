@@ -11,7 +11,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "cc.cocomine.eclassroom",
-      "usesIcloudStorage": true
+      "usesIcloudStorage": false
     },
     "android": {
       "adaptiveIcon": {
@@ -21,7 +21,8 @@
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
       "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "package": "cc.cocomine.eclassroom"
     },
     "web": {
       "output": "static",
@@ -57,7 +58,8 @@
         "expo-image-picker",
         {
           "photosPermission": "The app accesses your photos to let you upload images to conversations",
-          "microphonePermission": false
+          "microphonePermission": "The app accesses your microphone to let you record video and upload them to conversations",
+          "cameraPermission": "The app accesses your camera to let you take photos and upload them to conversations"
         }
       ]
     ],

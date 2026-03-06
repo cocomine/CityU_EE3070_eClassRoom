@@ -122,7 +122,8 @@ const styles = StyleSheet.create({
     card: {
         borderWidth: 1,
         width: 'auto',
-        padding: 10
+        padding: 10,
+        justifyContent: 'center'
     },
     cardContent: {
         flexDirection: 'row',
