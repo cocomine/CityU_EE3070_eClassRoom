@@ -1,10 +1,12 @@
 import { AvoidKeyboard } from '@/components/ui/avoid-keyboard';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
+import { Icon } from '@/components/ui/icon';
 import { Text } from '@/components/ui/text';
 import { View } from '@/components/ui/view';
 import { useColor } from '@/hooks/useColor';
 import { useLocalSearchParams, useNavigation } from 'expo-router';
+import { SendHorizontal, Square } from 'lucide-react-native';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Platform, ScrollView, StyleSheet, TextInput } from 'react-native';
 import Markdown from 'react-native-markdown-display';
@@ -12,6 +14,44 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 // Hardcode this flag to enable/disable markdown rendering for assistant messages.
 const ENABLE_ASSISTANT_MARKDOWN = true;
+// Hardcode this flag to force richer markdown test output in mock assistant replies.
+const ENABLE_MARKDOWN_TEST_SAMPLE = true;
+
+const MOCK_MARKDOWN_TEST_REPLY = [
+    '## Markdown Test Pack',
+    '',
+    '### Emphasis',
+    '**Bold**, *italic*, ~~strikethrough~~, and `inline code`.',
+    '',
+    '### Ordered List',
+    '1. First ordered item',
+    '2. Second ordered item',
+    '3. Third ordered item with [inline link](https://example.com)',
+    '',
+    '### Quote + Divider',
+    '> This is a blockquote line for style verification.',
+    '',
+    '---',
+    '',
+    '### Code Block',
+    '```ts',
+    "type Student = { id: string; name: string };",
+    'const toUpper = (value: string) => value.toUpperCase();',
+    '```',
+    '',
+    '### Table',
+    '| Column | Value |',
+    '| --- | --- |',
+    '| Status | DONE |',
+    '| Mode | Markdown |',
+    '',
+    '### Heading Levels',
+    '#### Heading 4',
+    '##### Heading 5',
+    '###### Heading 6',
+    '',
+    'End of markdown test sample.'
+].join('\n');
 
 const RUN_STEPS_IN_PROGRESS: RunStatus[] = ['PENDING', 'THINKING', 'STREAMING'];
 
@@ -258,7 +298,7 @@ function getNextMessageLocalId(messages: (UserMessage | AssistantMessage)[]) {
  * @returns Markdown string used as simulated assistant output.
  */
 function buildMockAssistantReply(userInput: string) {
-    return [
+    const baseReply = [
         `I received your message: **${userInput.trim()}**`,
         '',
         '### Suggested next steps',
@@ -267,7 +307,13 @@ function buildMockAssistantReply(userInput: string) {
         '- Share constraints if you want a more specific answer',
         '',
         'I can also generate a full example solution if you want.'
-    ].join('\n');
+    ];
+
+    if ( !ENABLE_MARKDOWN_TEST_SAMPLE ) {
+        return baseReply.join('\n');
+    }
+
+    return [...baseReply, '', ...MOCK_MARKDOWN_TEST_REPLY.split('\n')].join('\n');
 }
 
 /**
@@ -283,6 +329,17 @@ function shouldOpenInProgressConversation(conversationId: string) {
         lowerCaseConversationId.includes('active') ||
         lowerCaseConversationId.includes('stream')
     );
+}
+
+/**
+ * Normalizes markdown content to avoid known layout glitches in list rendering on some devices.
+ * We keep markdown support (headings, emphasis, code, links) while rendering list bullets as plain text bullets.
+ *
+ * @param content Raw assistant markdown content.
+ * @returns Normalized markdown string for stable rendering.
+ */
+function normalizeMarkdownForRenderer(content: string) {
+    return content.replace(/^(\s*)[-*]\s+/gm, '$1• ');
 }
 
 // Clones and normalizes template data to current route params (courseId/conversationId).
@@ -335,6 +392,8 @@ export default function ConversationScreen() {
     const textColor = useColor('text');
     const mutedColor = useColor('textMuted');
     const dangerColor = useColor('red');
+    const primaryForegroundColor = useColor('primaryForeground');
+    const destructiveForegroundColor = useColor('destructiveForeground');
     const codeFontFamily = Platform.select({
         ios: 'Menlo',
         android: 'monospace',
@@ -346,18 +405,7 @@ export default function ConversationScreen() {
     const markdownStyles = useMemo<StyleSheet.NamedStyles<any>>(
         () => ({
             body: {
-                color: textColor,
-                fontSize: 16,
-                lineHeight: 22
-            },
-            paragraph: {
-                marginTop: 0,
-                marginBottom: 6,
-                flexWrap: 'wrap',
-                flexDirection: 'row',
-                alignItems: 'flex-start',
-                justifyContent: 'flex-start',
-                width: '100%'
+                color: textColor
             },
             heading1: {
                 color: textColor,
@@ -377,17 +425,68 @@ export default function ConversationScreen() {
                 lineHeight: 24,
                 fontWeight: '700'
             },
-            list_item: {
-                alignItems: 'flex-start'
-            },
-            bullet_list_icon: {
+            heading4: {
                 color: textColor,
-                marginLeft: 0,
-                marginRight: 6
+                fontSize: 16,
+                lineHeight: 22,
+                fontWeight: '700'
             },
-            bullet_list_content: {
+            heading5: {
                 color: textColor,
-                lineHeight: 22
+                fontSize: 15,
+                lineHeight: 21,
+                fontWeight: '700'
+            },
+            heading6: {
+                color: textColor,
+                fontSize: 14,
+                lineHeight: 20,
+                fontWeight: '700'
+            },
+            strong: {
+                fontWeight: '700',
+                color: textColor
+            },
+            em: {
+                fontStyle: 'italic',
+                color: textColor
+            },
+            s: {
+                textDecorationLine: 'line-through',
+                color: textColor
+            },
+            blockquote: {
+                borderLeftWidth: 3,
+                borderLeftColor: 'rgba(120,120,128,0.45)',
+                backgroundColor: 'rgba(120,120,128,0.12)',
+                paddingHorizontal: 8,
+                paddingVertical: 4,
+                marginVertical: 4
+            },
+            hr: {
+                backgroundColor: 'rgba(120,120,128,0.5)',
+                height: StyleSheet.hairlineWidth
+            },
+            table: {
+                borderWidth: 1,
+                borderColor: 'rgba(120,120,128,0.5)',
+                borderRadius: 6
+            },
+            tr: {
+                borderBottomWidth: StyleSheet.hairlineWidth,
+                borderColor: 'rgba(120,120,128,0.45)',
+                flexDirection: 'row'
+            },
+            th: {
+                color: textColor,
+                fontWeight: '700',
+                paddingHorizontal: 8,
+                paddingVertical: 6
+            },
+            td: {
+                color: textColor,
+                paddingHorizontal: 8,
+                paddingVertical: 6
             },
             code_inline: {
                 color: textColor,
@@ -419,6 +518,14 @@ export default function ConversationScreen() {
             link: {
                 color: textColor,
                 textDecorationLine: 'underline'
+            },
+            ordered_list_icon: {
+                color: textColor,
+                marginLeft: 0,
+                marginRight: 6
+            },
+            ordered_list_content: {
+                color: textColor
             }
         }),
         [codeFontFamily, textColor]
@@ -936,20 +1043,17 @@ export default function ConversationScreen() {
                     : message.status === 'PENDING' || message.status === 'THINKING'
                         ? '...'
                         : '';
+            const shouldRenderMarkdown =
+                ENABLE_ASSISTANT_MARKDOWN && message.status === 'DONE';
+            const markdownContent = shouldRenderMarkdown
+                ? normalizeMarkdownForRenderer(assistantText)
+                : assistantText;
 
             return (
                 <View
                     key={`assistant-${message.messageIdLocal}`}
                     style={styles.assistantMessageContainer}
                 >
-                    {ENABLE_ASSISTANT_MARKDOWN ? (
-                        <Markdown style={markdownStyles}>
-                            {assistantText}
-                        </Markdown>
-                    ) : (
-                        <Text style={styles.assistantMessageText}>{assistantText}</Text>
-                    )}
-
                     {message.status !== 'DONE' ? (
                         <Text variant="caption" style={styles.assistantStatus}>
                             {RUN_STATUS_LABEL[message.status]}
@@ -961,6 +1065,15 @@ export default function ConversationScreen() {
                             {message.error.message}
                         </Text>
                     ) : null}
+
+                    {/* Render markdown only after run is complete to avoid streaming-time layout overlap/jitter. */}
+                    {shouldRenderMarkdown ? (
+                        <Markdown style={markdownStyles}>
+                            {markdownContent}
+                        </Markdown>
+                    ) : (
+                        <Text style={styles.assistantMessageText}>{assistantText}</Text>
+                    )}
                 </View>
             );
         },
@@ -1027,7 +1140,7 @@ export default function ConversationScreen() {
                         />
 
                         <Button
-                            size="sm"
+                            size="icon"
                             style={styles.primaryActionButton}
                             variant={runIsInProgress ? 'destructive' : 'default'}
                             // Button state machine:
@@ -1035,8 +1148,17 @@ export default function ConversationScreen() {
                             // - idle run => Send
                             onPress={runIsInProgress ? handleCancelRun : handleSendMessage}
                             disabled={runIsInProgress ? false : sendDisabled}
+                            accessibilityLabel={runIsInProgress ? '停止回覆' : '傳送訊息'}
                         >
-                            {runIsInProgress ? '停止' : '傳送'}
+                            <Icon
+                                name={runIsInProgress ? Square : SendHorizontal}
+                                size={20}
+                                color={
+                                    runIsInProgress
+                                        ? destructiveForegroundColor
+                                        : primaryForegroundColor
+                                }
+                            />
                         </Button>
                     </View>
                 </View>
@@ -1091,7 +1213,7 @@ const styles = StyleSheet.create({
         lineHeight: 22
     },
     assistantStatus: {
-        marginTop: 2
+        marginBottom: 2
     },
     composerSection: {
         borderTopWidth: StyleSheet.hairlineWidth,
@@ -1123,7 +1245,8 @@ const styles = StyleSheet.create({
         paddingBottom: 0
     },
     primaryActionButton: {
+        width: 38,
         height: 38,
-        paddingHorizontal: 14
+        paddingHorizontal: 0
     }
 });
