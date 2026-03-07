@@ -1,24 +1,29 @@
 import { StudentStatusCard } from '@/components/student-status-card';
+import { Button } from "@/components/ui/button";
 import { Col, Row } from '@/components/ui/grid';
+import { Icon } from "@/components/ui/icon";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Text } from "@/components/ui/text";
 import { useToast } from "@/components/ui/toast";
 import { View } from "@/components/ui/view";
-import { UploadFiles } from "@/components/UploadFiles";
+import { UploadedFile, UploadFiles, UploadFilesHandle } from "@/components/UploadFiles";
 import { Co2CardGauge } from '@/components/weather/co2-card-gauge';
 import { HumidityCard } from '@/components/weather/humidity-card';
 import { LightCard } from '@/components/weather/light-card';
 import { TemperatureCard } from '@/components/weather/temperature-card';
 import { useColor } from "@/hooks/useColor";
+import { FILE_EXTENSIONS } from "@/utils/file-meta";
+import { wait } from "@/utils/wait";
 import BottomSheet, { BottomSheetScrollView, BottomSheetView } from "@gorhom/bottom-sheet";
 import { useLocalSearchParams } from "expo-router";
-import { useEffect, useState } from "react";
+import { MessageCirclePlus, Upload } from "lucide-react-native";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { RefreshControl, ScrollView, StyleSheet, useWindowDimensions } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-
+// Mock data for testing and development purposes
 const FakeCourse: CourseDataTeacher = {title: 'Fake Course', courseId: '123456'};
 const FakeClassRoom: ClassRoomDataTeacher = {
     co2: 500,
@@ -30,10 +35,48 @@ const FakeClassRoom: ClassRoomDataTeacher = {
     }, {
         label: 2, status: 'attention'
     }, ...(new Array(28).fill(0).map((_, i) => ({
-        label: i+2, status: null
+        label: i + 2, status: null
     })))]
 
 };
+const FakeUploadedFiles: UploadedFile[] = [
+    /*...FILE_EXTENSIONS.map((ext, index) => ({
+     id: String(index + 1),
+     name: `Sample.${ext}`
+     })),*/
+    {
+        id: String(FILE_EXTENSIONS.length + 1),
+        name: 'README'
+    },
+    {
+        id: String(FILE_EXTENSIONS.length + 2),
+        name: 'unknown.weirdext'
+    }
+];
+const FakeConversations: Conversation[] = [
+    {
+        id: '1',
+        title: 'Conversation 1',
+        questionPreview: 'What is the air quality like today?'
+    },
+    {
+        id: '2',
+        title: 'Conversation 2',
+        questionPreview: 'How can I improve student engagement?'
+    },
+    {
+        id: '3',
+        title: 'Conversation 3',
+        questionPreview: 'What are some good teaching strategies for this topic?'
+    }
+];
+
+//
+export interface Conversation {
+    id: string;
+    title: string;
+    questionPreview: string;
+}
 
 // Teacher selected course data structure
 export interface CourseDataTeacher {
@@ -184,16 +227,42 @@ function LLMBottomSheet() {
     const bottomSheetBackgroundColor = useColor('card');
     const bottomSheetHandleColor = useColor('muted');
     const [courseData, setCourseData] = useState<CourseDataTeacher>(defaultCourseData);
+    const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[] | null>(null);
+    const [conversations, setConversations] = useState<Conversation[] | null>(null);
+    const [refreshing, setRefreshing] = useState(false);
+    const ref = useRef<UploadFilesHandle>(null);
 
-    // Fetch course details
-    useEffect(() => {
+    // Fetching course details and uploaded files from backend
+    const loader = useCallback(async () => {
+        setRefreshing(true);
+
+        await wait(1000);
         //TODO: fetch course title from backend
+        setCourseData({...FakeCourse, courseId});
 
-        // Simulate fetching course details from backend with a delay
-        setTimeout(() => {
-            setCourseData({...FakeCourse, courseId});
-        }, 1000);
+        // TODO: fetch uploaded files for the course from backend
+        setUploadedFiles(prevState => {
+            if ( prevState === null ) return [...FakeUploadedFiles];
+
+            // Merge existing uploaded files with fetched files, avoiding duplicates.
+            const existingIds = new Set(prevState.map(item => item.id));
+            const merged = [...prevState];
+            FakeUploadedFiles.forEach(item => {
+                if ( !existingIds.has(item.id) ) merged.push(item);
+            });
+            return merged;
+        });
+
+        // TODO: fetch conversations for the course from backend
+        setConversations([...FakeConversations]);
+
+        setRefreshing(false);
     }, [courseId]);
+
+    // Load course details and uploaded files when component mounts or courseId changes
+    useEffect(() => {
+        loader().then();
+    }, [loader]);
 
     return (
         <BottomSheet
@@ -221,11 +290,28 @@ function LLMBottomSheet() {
                 <BottomSheetScrollView
                     style={{flex: 1}}
                     refreshControl={
-                        <RefreshControl refreshing={false} onRefresh={() => {}}/>}
+                        <RefreshControl refreshing={refreshing} onRefresh={loader}/>}
                     nestedScrollEnabled={true}
                 >
-                    <UploadFiles/>
+                    {/* Uploaded files section */}
+                    <View style={styles.sectionTitleContainer}>
+                        <Text variant={'title'}>Uploaded files</Text>
+                        <Button variant={'outline'} size={'sm'} onPress={() => ref.current?.open()}>
+                            <Icon name={Upload} size={14}/>
+                            <Text style={{fontSize: 14}}>Select files to upload</Text>
+                        </Button>
+                    </View>
+                    <UploadFiles data={uploadedFiles} ref={ref}/>
                     <Separator style={{marginVertical: 15}}/>
+                    <View style={styles.sectionTitleContainer}>
+                        <Text variant={'title'}>Conversations</Text>
+                        <Button variant={'outline'} size={'sm'} onPress={() => {}}>
+                            <Icon name={MessageCirclePlus} size={14}/>
+                            <Text style={{fontSize: 14}}>New Conversation</Text>
+                        </Button>
+                    </View>
+                    {//todo: conversations list
+                    }
                 </BottomSheetScrollView>
             </BottomSheetView>
         </BottomSheet>
@@ -257,7 +343,7 @@ const styles = StyleSheet.create({
         justifyContent: 'space-between',
         alignItems: 'center'
     },
-    uploadedFilesTitleContainer: {
+    sectionTitleContainer: {
         flexDirection: "row",
         alignItems: "center",
         gap: 10,

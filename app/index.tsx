@@ -1,7 +1,7 @@
 import { BottomSheet, useBottomSheet } from '@/components/ui/bottom-sheet';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { InputOTP, InputOTPProps } from "@/components/ui/input-otp";
+import { InputOTP, InputOTPProps, InputOTPRef } from "@/components/ui/input-otp";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { LoadingOverlay, Spinner } from "@/components/ui/spinner";
@@ -9,8 +9,8 @@ import { Text } from "@/components/ui/text";
 import { View } from "@/components/ui/view";
 import { wait } from "@/utils/wait";
 import { useRouter } from "expo-router";
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { StyleSheet, TextInputProps, TouchableOpacity } from "react-native";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { StyleSheet, TextInput, TextInputProps, TouchableOpacity } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 const FakeCourse = [
@@ -66,6 +66,7 @@ function TeacherBottomSheet({isVisible, onClose}: { isVisible: boolean, onClose:
     const [courseList, setCourseList] = useState<Course | null>(null);
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
+    const ref = useRef<TextInput>(null);
 
     // when user click a course, navigate to teacher page with course id and close the bottom sheet
     const onClick = useCallback((courseId: string) => {
@@ -163,6 +164,15 @@ function TeacherBottomSheet({isVisible, onClose}: { isVisible: boolean, onClose:
         }, 1000);
     }, []);
 
+    // when the bottom sheet is opened, focus the input after a short delay to ensure the bottom sheet animation is complete
+    useEffect(() => {
+        if ( createNewCourseBottomSheet.isVisible ) {
+            setTimeout(() => {
+                ref.current?.focus();
+            }, 300);
+        }
+    }, [createNewCourseBottomSheet.isVisible]);
+
     return (
         <>
             <BottomSheet
@@ -195,6 +205,7 @@ function TeacherBottomSheet({isVisible, onClose}: { isVisible: boolean, onClose:
                 <View style={{gap: 12}}>
                     <Text variant="body">Enter course Name</Text>
                     <Input
+                        ref={ref}
                         variant="outline"
                         error={error}
                         placeholder={'EE3070'}
@@ -225,6 +236,7 @@ function StudentBottomSheet({isVisible, onClose}: { isVisible: boolean, onClose:
     const [error, setError] = useState('');
     const router = useRouter();
     const [loading, setLoading] = useState(false);
+    const ref = useRef<InputOTPRef>(null);
 
     // when course id changes, clear error message
     const onChangeText = useCallback((value: string) => {
@@ -257,6 +269,15 @@ function StudentBottomSheet({isVisible, onClose}: { isVisible: boolean, onClose:
 
     }, [onClose, router]);
 
+    // when the bottom sheet is opened, focus the input after a short delay to ensure the bottom sheet animation is complete
+    useEffect(() => {
+        if ( isVisible ) {
+            setTimeout(() => {
+                ref.current?.focus();
+            }, 300);
+        }
+    }, [isVisible]);
+
     return (
         <>
             <BottomSheet
@@ -273,13 +294,14 @@ function StudentBottomSheet({isVisible, onClose}: { isVisible: boolean, onClose:
                         disabled={loading}
                         onChangeText={onChangeText}
                         onComplete={onComplete}
+                        ref={ref}
                     />
                 </View>
                 <LoadingOverlay
                     visible={loading}
-                    size='lg'
-                    variant='circle'
-                    label='Loading...'
+                    size="lg"
+                    variant="circle"
+                    label="Loading..."
                     backdrop={false}
                     backdropOpacity={0.7}
                 />

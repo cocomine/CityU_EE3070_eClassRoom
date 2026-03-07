@@ -1,22 +1,22 @@
 import { Icon } from '@/components/ui/icon';
-import { useColorScheme } from '@/hooks/useColorScheme';
+import { useColor } from "@/hooks/useColor";
 import { Stack, useRouter } from 'expo-router';
 import { ArrowLeft } from 'lucide-react-native';
 import 'react-native-reanimated';
 import { Pressable, StyleSheet } from "react-native";
 
 export default function RootLayout() {
-    const colorScheme = useColorScheme();
     const router = useRouter();
+    const textColor = useColor('text')
 
     const renderBackButton = () => (
         <Pressable
             onPress={() => router.back()}
-            accessibilityLabel="返回"
+            accessibilityLabel="Back"
             hitSlop={8}
             style={styles.backButton}
         >
-            <Icon name={ArrowLeft} size={22}/>
+            <Icon name={ArrowLeft} size={22} color={textColor}/>
         </Pressable>
     );
 

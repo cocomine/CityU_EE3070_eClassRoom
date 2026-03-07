@@ -1,12 +1,10 @@
 import { FileCard, FileUploadingCard } from "@/components/FileCard";
 import { showErrorAlert } from "@/components/ui/alert";
 import { BottomSheet as UIBottomSheet, useBottomSheet } from "@/components/ui/bottom-sheet";
-import { Button } from "@/components/ui/button";
 import { Icon } from "@/components/ui/icon";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Text } from "@/components/ui/text";
 import { View } from "@/components/ui/view";
-import { FILE_EXTENSIONS } from "@/utils/file-meta";
 import { wait } from "@/utils/wait";
 import { getDocumentAsync } from "expo-document-picker";
 import {
@@ -15,25 +13,9 @@ import {
     requestCameraPermissionsAsync,
     requestMediaLibraryPermissionsAsync
 } from "expo-image-picker";
-import { useLocalSearchParams } from "expo-router";
-import { Camera, ImagePlus, Paperclip, Upload } from "lucide-react-native";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { Camera, ImagePlus, Paperclip } from "lucide-react-native";
+import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from "react";
 import { FlatList, StyleSheet, TouchableOpacity } from "react-native";
-
-const FakeUploadedFiles: UploadedFile[] = [
-    /*...FILE_EXTENSIONS.map((ext, index) => ({
-     id: String(index + 1),
-     name: `Sample.${ext}`
-     })),*/
-    {
-        id: String(FILE_EXTENSIONS.length + 1),
-        name: 'README'
-    },
-    {
-        id: String(FILE_EXTENSIONS.length + 2),
-        name: 'unknown.weirdext'
-    }
-];
 
 // Uploaded file data structure
 export interface UploadedFile {
@@ -56,15 +38,31 @@ export interface UploadFileRequest {
     simulateFailAt?: number; // For simulation purposes only; remove when real upload status is available from backend.
 }
 
+// Props for the UploadFiles component
+export interface UploadFilesProps {
+    data: UploadedFile[] | null;
+    uploadUrl?: string;
+}
+
+// Expose `open` method and `uploadUrl` to parent components via ref for programmatic control.
+export interface UploadFilesHandle {
+    open: () => void;
+    uploadUrl: string;
+}
+
 /**
  * Component to display a horizontal list of uploaded files for the selected course.
  * @constructor
  */
-export function UploadFiles() {
-    const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[] | null>(null);
-    const {courseId} = useLocalSearchParams<{ courseId: string }>();
+export const UploadFiles = forwardRef<UploadFilesHandle, UploadFilesProps>(({data, uploadUrl}, ref) => {
+    const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[] | null>(data);
     const [uploadRequests, setUploadRequests] = useState<UploadFileRequest[]>([]);
     const {isVisible, open, close} = useBottomSheet();
+    // Store custom upload endpoint for future real upload requests.
+    const uploadEndpoint = uploadUrl ?? '';
+
+    // Expose `open` method and `uploadEndpoint` to parent components via ref.
+    useImperativeHandle(ref, () => ({open, uploadUrl: uploadEndpoint}), [open, uploadEndpoint]);
 
     // Track timers per upload so we can cancel or clean them up.
     const uploadTimers = useRef<Map<string, ReturnType<typeof setInterval>>>(new Map());
@@ -299,33 +297,14 @@ export function UploadFiles() {
         newRequests.forEach(request => startUploadSimulation(request.id));
     }, [createUploadId, startUploadSimulation]);
 
+    // Handle menu option selection, close the menu, and trigger the corresponding action.
     const menuChose = useCallback(async (opt: 'files' | 'media' | 'camera') => {
         close();
-        await wait(500);
+        await wait(300);
         if ( opt === 'files' ) await pickFiles();
         else if ( opt === 'media' ) await pickMedia();
         else if ( opt === 'camera' ) await openCamera();
     }, [close, openCamera, pickFiles, pickMedia]);
-
-    // Fetch course details
-    useEffect(() => {
-        // TODO: fetch uploaded files for the course from backend
-
-        // Simulate fetching course details from backend with a delay
-        setTimeout(() => {
-            setUploadedFiles(prevState => {
-                if ( prevState === null ) return [...FakeUploadedFiles];
-
-                // Merge existing uploaded files with fetched files, avoiding duplicates.
-                const existingIds = new Set(prevState.map(item => item.id));
-                const merged = [...prevState];
-                FakeUploadedFiles.forEach(item => {
-                    if ( !existingIds.has(item.id) ) merged.push(item);
-                });
-                return merged;
-            });
-        }, 1000);
-    }, [courseId]);
 
     // Cleanup any running timers when the component unmounts.
     useEffect(() => {
@@ -336,17 +315,14 @@ export function UploadFiles() {
         };
     }, []);
 
+    // Update local uploaded files state when the `data` prop changes (e.g. after fetching from backend).
+    useEffect(() => {
+        setUploadedFiles(data);
+    }, [data]);
+
     return (
         <>
-            <View>
-                <View style={styles.uploadedFilesTitleContainer}>
-                    <Text variant={'title'}>Uploaded files</Text>
-                    <Button variant={'outline'} size={'sm'} onPress={open}>
-                        <Icon name={Upload} size={14}/>
-                        <Text style={{fontSize: 14}}>Select files to upload</Text>
-                    </Button>
-                </View>
-                <View style={{marginTop: 10}}>
+            <View style={{marginTop: 10}}>
                     {uploadedFiles === null && uploadRequests.length === 0 ? (
                         // Show skeleton only when there are no uploads in progress and uploaded files are still
                         // loading.
@@ -389,7 +365,6 @@ export function UploadFiles() {
                         />
                     )}
                 </View>
-            </View>
             <UIBottomSheet isVisible={isVisible} onClose={close} snapPoints={[0.30]}>
                 <View>
                     <TouchableOpacity style={styles.uploadMenu} onPress={() => menuChose('files')}>
@@ -408,7 +383,9 @@ export function UploadFiles() {
             </UIBottomSheet>
         </>
     );
-}
+});
+
+UploadFiles.displayName = 'UploadFiles';
 
 
 const styles = StyleSheet.create({
