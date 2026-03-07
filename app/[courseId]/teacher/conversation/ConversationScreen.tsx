@@ -1,3 +1,4 @@
+import { AvoidKeyboard } from '@/components/ui/avoid-keyboard';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Text } from '@/components/ui/text';
@@ -5,7 +6,7 @@ import { View } from '@/components/ui/view';
 import { useColor } from '@/hooks/useColor';
 import { useLocalSearchParams, useNavigation } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, TextInput } from 'react-native';
+import { Platform, ScrollView, StyleSheet, TextInput } from 'react-native';
 import Markdown from 'react-native-markdown-display';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -971,10 +972,7 @@ export default function ConversationScreen() {
             style={[styles.container, {backgroundColor}]}
             edges={['left', 'right', 'bottom']}
         >
-            <KeyboardAvoidingView
-                style={styles.container}
-                behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-            >
+            <View style={styles.container}>
                 <ScrollView
                     ref={scrollRef}
                     style={styles.messagesScroll}
@@ -1042,7 +1040,10 @@ export default function ConversationScreen() {
                         </Button>
                     </View>
                 </View>
-            </KeyboardAvoidingView>
+
+                {/* Uses keyboard event height directly to keep composer visible on iPad/iPhone. */}
+                <AvoidKeyboard/>
+            </View>
         </SafeAreaView>
     );
 }
