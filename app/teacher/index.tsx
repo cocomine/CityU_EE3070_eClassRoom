@@ -1,6 +1,6 @@
 import { FileCard, FileUploadingCard } from "@/components/FileCard";
-import { useActionSheet } from "@/components/ui/action-sheet";
 import { showErrorAlert } from "@/components/ui/alert";
+import { BottomSheet as UIBottomSheet, useBottomSheet } from '@/components/ui/bottom-sheet';
 import { Button } from "@/components/ui/button";
 import { Col, Row } from '@/components/ui/grid';
 import { Icon } from "@/components/ui/icon";
@@ -15,6 +15,7 @@ import { LightCard } from '@/components/weather/light-card';
 import { TemperatureCard } from '@/components/weather/temperature-card';
 import { useColor } from "@/hooks/useColor";
 import { FILE_EXTENSIONS } from "@/utils/file-meta";
+import { wait } from "@/utils/wait";
 import BottomSheet, { BottomSheetScrollView, BottomSheetView } from "@gorhom/bottom-sheet";
 import { getDocumentAsync } from "expo-document-picker";
 import {
@@ -24,9 +25,9 @@ import {
     requestMediaLibraryPermissionsAsync
 } from "expo-image-picker";
 import { useLocalSearchParams } from "expo-router";
-import { Camera, FileImage, FileText, Upload } from "lucide-react-native";
+import { Camera, ImagePlus, Paperclip, Upload } from "lucide-react-native";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { FlatList, RefreshControl, ScrollView, StyleSheet, useWindowDimensions } from "react-native";
+import { FlatList, RefreshControl, ScrollView, StyleSheet, TouchableOpacity, useWindowDimensions } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaView } from "react-native-safe-area-context";
 
@@ -268,7 +269,7 @@ function UploadedFiles() {
     const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[] | null>(null);
     const {courseId} = useLocalSearchParams<{ courseId: string }>();
     const [uploadRequests, setUploadRequests] = useState<UploadFileRequest[]>([]);
-    const {show, ActionSheet} = useActionSheet();
+    const {isVisible, open, close} = useBottomSheet();
 
     // Track timers per upload so we can cancel or clean them up.
     const uploadTimers = useRef<Map<string, ReturnType<typeof setInterval>>>(new Map());
@@ -388,7 +389,7 @@ function UploadedFiles() {
         // Start upload simulation for each new request. In a real implementation, this would be triggered by the
         // actual upload logic and progress callbacks instead.
         newRequests.forEach(request => startUploadSimulation(request.id));
-    }, [createUploadId, startUploadSimulation]);
+    }, [close, createUploadId, startUploadSimulation]);
 
     // Pick media files and enqueue them for simulated uploading.
     const pickMedia = useCallback(async () => {
@@ -443,12 +444,12 @@ function UploadedFiles() {
         // Start upload simulation for each new request. In a real implementation, this would be triggered by the
         // actual upload logic and progress callbacks instead.
         newRequests.forEach(request => startUploadSimulation(request.id));
-    }, [createUploadId, startUploadSimulation]);
+    }, [close, createUploadId, startUploadSimulation]);
 
     // Open camera to take a photo and enqueue it for simulated uploading.
-    //todo
     const openCamera = useCallback(async () => {
-        // Permission to access camera is required to take photos, so we request it at runtime before launching the camera.
+        // Permission to access camera is required to take photos, so we request it at runtime before launching the
+        // camera.
         const permissionResult = await requestCameraPermissionsAsync();
 
         // Check if permission was granted before proceeding. If not, show an error alert and return early.
@@ -477,16 +478,19 @@ function UploadedFiles() {
             const shouldFail = Math.random() < 0.25;
             const failAt = shouldFail ? 20 + Math.floor(Math.random() * 60) : undefined;
 
+            const fileExtension = item.uri?.split('.').pop();
+            const fileName = item.fileName || `Camera_${new Date().toISOString()}.${fileExtension}`;
+
             return {
                 id: createUploadId(),
                 progress: 0,
                 status: 'uploading',
                 error: undefined,
                 simulateFailAt: failAt, // For simulation purposes only; remove when real upload status is available
-                                        // from backend.
+                // from backend.
                 file: {
                     uri: item.uri,
-                    name: item.fileName || createUploadId(),//todo
+                    name: fileName,
                     mimeType: item.mimeType,
                     size: item.fileSize
                 }
@@ -498,33 +502,15 @@ function UploadedFiles() {
         // Start upload simulation for each new request. In a real implementation, this would be triggered by the
         // actual upload logic and progress callbacks instead.
         newRequests.forEach(request => startUploadSimulation(request.id));
-    }, [createUploadId, startUploadSimulation]);
+    }, [close, createUploadId, startUploadSimulation]);
 
-    // Show action sheet with options to pick files or media when upload button is pressed.
-    //todo
-    const onUploadPress = useCallback(() => {
-        show({
-            title: 'Upload files',
-            message: 'Select files to upload for this course.',
-            options: [
-                {
-                    icon: <Icon name={FileText}/>,
-                    title: 'Upload Document',
-                    onPress: pickFiles
-                },
-                {
-                    icon: <Icon name={FileImage}/>,
-                    title: "Upload Media",
-                    onPress: pickMedia
-                },
-                {
-                    title: 'Take Photo',
-                    icon: <Icon name={Camera}/>,
-                    onPress: openCamera
-                }
-            ]
-        });
-    }, [openCamera, pickFiles, pickMedia, show]);
+    const menuChose = useCallback(async (opt: 'files' | 'media' | 'camera') => {
+        close();
+        await wait(500);
+        if ( opt === 'files' ) await pickFiles();
+        else if ( opt === 'media' ) await pickMedia();
+        else if ( opt === 'camera' ) await openCamera();
+    }, [close, openCamera, pickFiles, pickMedia]);
 
     // Fetch course details
     useEffect(() => {
@@ -560,7 +546,7 @@ function UploadedFiles() {
             <View>
                 <View style={styles.uploadedFilesTitleContainer}>
                     <Text variant={'title'}>Uploaded files</Text>
-                    <Button variant={'outline'} size={'sm'} onPress={onUploadPress}>
+                    <Button variant={'outline'} size={'sm'} onPress={open}>
                         <Icon name={Upload} size={14}/>
                         <Text style={{fontSize: 14}}>Select files to upload</Text>
                     </Button>
@@ -609,13 +595,33 @@ function UploadedFiles() {
                     )}
                 </View>
             </View>
-            {ActionSheet}
+            <UIBottomSheet isVisible={isVisible} onClose={close} snapPoints={[0.30]}>
+                <View>
+                    <TouchableOpacity style={styles.uploadMenu} onPress={() => menuChose('files')}>
+                        <Icon name={Paperclip} size={20} style={{marginRight: 16}}/>
+                        <Text variant="body">Files</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity style={styles.uploadMenu} onPress={() => menuChose('media')}>
+                        <Icon name={ImagePlus} size={20} style={{marginRight: 16}}/>
+                        <Text variant="body">Media Library</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity style={styles.uploadMenu} onPress={() => menuChose('camera')}>
+                        <Icon name={Camera} size={20} style={{marginRight: 16}}/>
+                        <Text variant="body">Camera</Text>
+                    </TouchableOpacity>
+                </View>
+            </UIBottomSheet>
         </>
     );
-};
+}
 
 
 const styles = StyleSheet.create({
+    uploadMenu: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        padding: 16
+    },
     container: {
         flex: 1
     },
