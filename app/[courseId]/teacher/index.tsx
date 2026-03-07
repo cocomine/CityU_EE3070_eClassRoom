@@ -1,6 +1,5 @@
 import { StudentStatusCard } from '@/components/student-status-card';
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import { Col, Row } from '@/components/ui/grid';
 import { Icon } from "@/components/ui/icon";
 import { Separator } from "@/components/ui/separator";
@@ -19,7 +18,7 @@ import { wait } from "@/utils/wait";
 import BottomSheet, { BottomSheetBackdrop, BottomSheetBackdropProps } from "@gorhom/bottom-sheet";
 import { useHeaderHeight } from "@react-navigation/elements";
 import { useLocalSearchParams } from "expo-router";
-import { MessageCirclePlus, Upload } from "lucide-react-native";
+import { ChevronRight, MessageCirclePlus, Upload } from "lucide-react-native";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ScrollView, StyleSheet, useWindowDimensions } from "react-native";
 import { FlatList, GestureHandlerRootView } from "react-native-gesture-handler";
@@ -254,6 +253,8 @@ function LLMBottomSheet() {
     const bottomSheetBackgroundColor = useColor('card');
     const bottomSheetHandleColor = useColor('muted');
     const conversationBorderColor = useColor('border');
+    const conversationAccentColor = useColor('primary');
+    const conversationChevronColor = useColor('muted');
     const [courseData, setCourseData] = useState<CourseDataTeacher>(defaultCourseData);
     const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[] | null>(null);
     const [conversations, setConversations] = useState<Conversation[] | null>(null);
@@ -296,18 +297,20 @@ function LLMBottomSheet() {
     // Render function for each conversation item in the bottom sheet list
     const renderConversationItem = useCallback(({item}: { item: Conversation }) => {
         return (
-            <Card style={[styles.conversationCard, {borderColor: conversationBorderColor}]}>
-                <CardContent style={styles.conversationCardContent}>
+            <View style={styles.conversationRow}>
+                <View style={[styles.conversationAccent, {backgroundColor: conversationAccentColor}]}/>
+                <View style={styles.conversationText}>
                     <Text variant={'body'} style={styles.conversationTitle}>
                         {item.title}
                     </Text>
                     <Text variant={'caption'} numberOfLines={2}>
                         {item.questionPreview}
                     </Text>
-                </CardContent>
-            </Card>
+                </View>
+                <Icon name={ChevronRight} size={16} color={conversationChevronColor}/>
+            </View>
         );
-    }, [conversationBorderColor]);
+    }, [conversationAccentColor, conversationChevronColor]);
 
     // Render function for the header of the bottom sheet list, including uploaded files section and conversations
     // section
@@ -355,6 +358,7 @@ function LLMBottomSheet() {
         );
     }, [conversations]);
 
+    // Render function for the backdrop of the bottom sheet, allowing touch through and setting opacity
     const renderBackdrop = useCallback((props: BottomSheetBackdropProps) => {
         return <BottomSheetBackdrop
             {...props}
@@ -376,6 +380,7 @@ function LLMBottomSheet() {
             enableDynamicSizing={false}
             backdropComponent={renderBackdrop}
         >
+            {/* Header section of the bottom sheet showing course title and ID, with loading skeletons if data is not yet available */}
             <View style={styles.headerContainer}>
                 <View style={styles.infoContainer}>
                     <View>
@@ -398,7 +403,7 @@ function LLMBottomSheet() {
                 onRefresh={loader}
                 refreshing={refreshing}
                 ItemSeparatorComponent={() => (
-                    <View style={styles.conversationItemSeparator}/>
+                    <View style={[styles.conversationItemSeparator, {backgroundColor: conversationBorderColor}]}/>
                 )}
                 ListEmptyComponent={renderConversationEmpty}
                 ListHeaderComponent={renderListHeader}
@@ -451,18 +456,28 @@ const styles = StyleSheet.create({
         gap: 10,
         justifyContent: 'space-between'
     },
-    conversationCard: {
-        borderWidth: 1,
-        padding: 12
+    conversationRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingVertical: 12,
+        paddingHorizontal: 8,
+        gap: 12
     },
-    conversationCardContent: {
-        gap: 6
+    conversationAccent: {
+        width: 3,
+        height: 36,
+        borderRadius: 2
+    },
+    conversationText: {
+        flex: 1,
+        gap: 4
     },
     conversationTitle: {
         fontWeight: '600'
     },
     conversationItemSeparator: {
-        height: 10
+        height: StyleSheet.hairlineWidth,
+        opacity: 0.6
     },
     conversationLoading: {
         marginTop: 10
