@@ -13,6 +13,7 @@ const ENABLE_ASSISTANT_MARKDOWN = true;
 
 const RUN_STEPS_IN_PROGRESS: RunStatus[] = ['PENDING', 'THINKING', 'STREAMING'];
 
+// UI labels used under assistant messages to explain current run state.
 const RUN_STATUS_LABEL: Record<RunStatus, string> = {
     PENDING: 'Queued...',
     THINKING: 'Thinking...',
@@ -23,6 +24,7 @@ const RUN_STATUS_LABEL: Record<RunStatus, string> = {
     STALE: 'Outdated'
 };
 
+// UI labels used for non-final user message states.
 const USER_MSG_STATUS_LABEL: Partial<Record<UserMsgStatus, string>> = {
     DRAFT: 'Draft',
     SENDING: 'Sending...',
@@ -31,6 +33,7 @@ const USER_MSG_STATUS_LABEL: Partial<Record<UserMsgStatus, string>> = {
     DUPLICATE: 'Duplicate message'
 };
 
+// Final response used by the "old conversation with unfinished run" simulation.
 const FakeStreamingFinalReply = [
     'Sure, I can help you create a lesson plan.',
     '',
@@ -85,6 +88,7 @@ const FakeOldConversations: Conversation = {
     updatedAt: new Date().toISOString()
 };
 
+// Mock conversation representing "opened an existing chat while assistant is still streaming".
 const FakeOldConversationInProgress: Conversation = {
     courseId: '123456',
     conversationId: 'RUNNING_UUID',
@@ -206,6 +210,11 @@ function isRunInProgressStatus(status: RunStatus) {
     return RUN_STEPS_IN_PROGRESS.includes(status);
 }
 
+// Minimal inline markdown parser.
+// Supported syntaxes:
+// - **bold**
+// - `inline code`
+// Any other token is rendered as plain text.
 function parseInlineMarkdown(raw: string): InlineToken[] {
     const tokenRegex = /(`[^`]+`|\*\*[^*]+\*\*)/g;
     const tokens: InlineToken[] = [];
@@ -243,6 +252,9 @@ function buildConversationTitle(userInput: string) {
 
 function getNextMessageLocalId(messages: (UserMessage | AssistantMessage)[]) {
     if ( messages.length === 0 ) return 1;
+    // Screen layout:
+    // - Top area: message history list
+    // - Bottom area: input composer with one primary action button
     return (
         messages.reduce(
             (max, message) => Math.max(max, message.messageIdLocal),
@@ -273,6 +285,8 @@ function shouldOpenInProgressConversation(conversationId: string) {
     );
 }
 
+// Clones and normalizes template data to current route params (courseId/conversationId).
+// This keeps fake templates reusable while still producing route-correct records.
 function hydrateConversationTemplate(params: {
     template: Conversation;
     courseId: string;
@@ -309,6 +323,8 @@ function MarkdownAssistantMessage({
     content: string;
     textColor: string;
 }) {
+    // Simple markdown renderer without external dependency.
+    // It intentionally supports only a small subset needed for conversation preview.
     const lines = content.split('\n');
     const blocks: React.ReactNode[] = [];
     const codeFontFamily = Platform.select({
@@ -321,6 +337,7 @@ function MarkdownAssistantMessage({
     let codeBuffer: string[] = [];
     let nodeIndex = 0;
 
+    // Renders inline markdown tokens inside one line.
     const renderInline = (line: string, keyPrefix: string) =>
         parseInlineMarkdown(line).map((token, index) => {
             if ( token.type === 'bold' ) {
@@ -348,6 +365,7 @@ function MarkdownAssistantMessage({
             return <Text key={`${keyPrefix}-text-${index}`}>{token.value}</Text>;
         });
 
+    // Flushes buffered fenced-code lines into one styled block node.
     const flushCodeBlock = () => {
         if ( codeBuffer.length === 0 ) return;
 
@@ -366,6 +384,12 @@ function MarkdownAssistantMessage({
         codeBuffer = [];
     };
 
+    // Parses line-level markdown blocks:
+    // 1) fenced code
+    // 2) heading
+    // 3) list item
+    // 4) blank spacer
+    // 5) paragraph
     lines.forEach((line) => {
         if ( line.trim().startsWith('```') ) {
             if ( inCodeBlock ) {
@@ -457,11 +481,16 @@ export default function ConversationScreen() {
     const mutedColor = useColor('textMuted');
     const dangerColor = useColor('red');
 
+    // Screen-level state: conversation payload, input draft, and temporary UI error.
     const [conversation, setConversation] = useState<Conversation | null>(null);
     const [draft, setDraft] = useState('');
     const [loadingConversation, setLoadingConversation] = useState(true);
     const [composerError, setComposerError] = useState<AppError | null>(null);
 
+    // Refs:
+    // - `conversationRef` gives timers access to latest conversation state.
+    // - timer refs manage simulated network/run lifecycle.
+    // - `runTargetByRunIdRef` stores final target text for each simulated run.
     const scrollRef = useRef<ScrollView>(null);
     const conversationRef = useRef<Conversation | null>(null);
     const runWarmupTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -470,6 +499,7 @@ export default function ConversationScreen() {
     const simulatedRunIdRef = useRef<string | null>(null);
     const runTargetByRunIdRef = useRef<Record<string, string>>({});
 
+    // Clears pending user ACK timeout (SENDING -> SENT transition).
     const clearUserAckTimer = useCallback(() => {
         if ( userAckTimerRef.current ) {
             clearTimeout(userAckTimerRef.current);
@@ -477,6 +507,7 @@ export default function ConversationScreen() {
         }
     }, []);
 
+    // Clears all active run-related timers and resets local run marker.
     const clearRunTimers = useCallback(() => {
         if ( runWarmupTimerRef.current ) {
             clearTimeout(runWarmupTimerRef.current);
@@ -489,6 +520,7 @@ export default function ConversationScreen() {
         simulatedRunIdRef.current = null;
     }, []);
 
+    // Applies terminal run state to the matching assistant message and clears activeRunId.
     const completeAssistantRun = useCallback(
         (runId: string, status: Extract<RunStatus, 'DONE' | 'CANCELLED' | 'ERROR'>) => {
             const eventTime = nowISO();
@@ -515,6 +547,7 @@ export default function ConversationScreen() {
                         };
 
                         if ( status === 'CANCELLED' ) {
+                            // Keep cancellation details for UI and future retry behavior.
                             nextMessage.error = {
                                 code: 'CANCELLED_BY_USER',
                                 message: 'The assistant run was cancelled by the user.',
@@ -530,6 +563,8 @@ export default function ConversationScreen() {
         []
     );
 
+    // Starts or resumes assistant run lifecycle for a specific runId.
+    // State progression: PENDING -> THINKING -> STREAMING -> DONE (or CANCELLED/ERROR).
     const startRunLifecycle = useCallback(
         (runId: string) => {
             clearRunTimers();
@@ -547,6 +582,7 @@ export default function ConversationScreen() {
             const runTarget =
                 runTargetByRunIdRef.current[runId] ?? assistantMessage.content;
 
+            // Simulates SSE token streaming by appending chunks over time.
             const startStreaming = () => {
                 const latestAssistantMessage = conversationRef.current?.messages.find(
                     (message): message is AssistantMessage =>
@@ -577,6 +613,7 @@ export default function ConversationScreen() {
                 });
 
                 runStreamTimerRef.current = setInterval(() => {
+                    // Stop safely if this run is no longer the active one.
                     if ( conversationRef.current?.activeRunId !== runId ) {
                         clearRunTimers();
                         return;
@@ -618,6 +655,7 @@ export default function ConversationScreen() {
                 }, 75);
             };
 
+            // Transitions assistant message into THINKING state.
             const startThinking = () => {
                 setConversation((previousConversation) => {
                     if ( !previousConversation ) return previousConversation;
@@ -642,6 +680,7 @@ export default function ConversationScreen() {
             };
 
             if ( assistantMessage.status === 'PENDING' ) {
+                // Start from full lifecycle when run is freshly created.
                 runWarmupTimerRef.current = setTimeout(() => {
                     if ( conversationRef.current?.activeRunId !== runId ) return;
                     startThinking();
@@ -655,6 +694,7 @@ export default function ConversationScreen() {
             }
 
             if ( assistantMessage.status === 'THINKING' ) {
+                // Resume from THINKING for reopened unfinished conversation.
                 runWarmupTimerRef.current = setTimeout(() => {
                     if ( conversationRef.current?.activeRunId !== runId ) return;
                     startStreaming();
@@ -663,6 +703,7 @@ export default function ConversationScreen() {
             }
 
             if ( assistantMessage.status === 'STREAMING' ) {
+                // Resume stream immediately for reopened unfinished conversation.
                 startStreaming();
             }
         },
@@ -674,7 +715,11 @@ export default function ConversationScreen() {
         conversationRef.current = conversation;
     }, [conversation]);
 
-    // Fetch conversation data when the component mounts or when courseId/conversationId changes.
+    // Fetches conversation data when route params change.
+    // This currently uses local mocks but mirrors future backend behavior:
+    // - new chat when conversationId is absent
+    // - old chat history when conversationId exists
+    // - old unfinished run when conversationId matches running markers
     useEffect(() => {
         let active = true;
         setLoadingConversation(true);
@@ -689,6 +734,7 @@ export default function ConversationScreen() {
             let nextConversation: Conversation;
 
             if ( conversationId ) {
+                // Existing conversation path.
                 const template = shouldOpenInProgressConversation(conversationId)
                     ? FakeOldConversationInProgress
                     : FakeOldConversations;
@@ -703,10 +749,12 @@ export default function ConversationScreen() {
                     nextConversation.activeRunId &&
                     shouldOpenInProgressConversation(conversationId)
                 ) {
+                    // Register stream target so reopened streaming run can continue.
                     runTargetByRunIdRef.current[nextConversation.activeRunId] =
                         FakeStreamingFinalReply;
                 }
             } else {
+                // New conversation path.
                 nextConversation = hydrateConversationTemplate({
                     template: DefaultConversation,
                     conversationId: null,
@@ -724,7 +772,7 @@ export default function ConversationScreen() {
         };
     }, [conversationId, courseId, clearRunTimers, clearUserAckTimer]);
 
-    // Resume an unfinished run when opening an old conversation.
+    // Auto-resume unfinished run after conversation data is loaded.
     useEffect(() => {
         if ( !conversation?.activeRunId ) return;
         if ( simulatedRunIdRef.current === conversation.activeRunId ) return;
@@ -736,6 +784,7 @@ export default function ConversationScreen() {
         if ( !activeRunMessage ) return;
         if ( !isRunInProgressStatus(activeRunMessage.status) ) return;
 
+        // Resume lifecycle from whatever status is stored in current assistant message.
         startRunLifecycle(conversation.activeRunId);
     }, [conversation, startRunLifecycle]);
 
@@ -768,6 +817,7 @@ export default function ConversationScreen() {
     const sendDisabled =
         !conversation || loadingConversation || draft.trim().length === 0;
 
+    // Cancels currently active assistant run.
     const handleCancelRun = useCallback(() => {
         const runId = conversationRef.current?.activeRunId;
         if ( !runId ) return;
@@ -776,6 +826,11 @@ export default function ConversationScreen() {
         completeAssistantRun(runId, 'CANCELLED');
     }, [clearRunTimers, completeAssistantRun]);
 
+    // Handles sending flow:
+    // 1) validate input and run lock
+    // 2) append local user + assistant placeholder messages
+    // 3) ACK user message (SENDING -> SENT)
+    // 4) run lifecycle starts via effect once activeRunId is present in state
     const handleSendMessage = useCallback(() => {
         const trimmedMessage = draft.trim();
         if ( !trimmedMessage ) return;
@@ -784,6 +839,7 @@ export default function ConversationScreen() {
         if ( !currentConversation ) return;
 
         if ( runIsInProgress ) {
+            // Record rejected attempt to keep chat history auditable for review/debug.
             const now = nowISO();
             const rejectedMessageId = getNextMessageLocalId(currentConversation.messages);
             const rejectedClientMessageId = `client_rejected_${Date.now()}`;
@@ -823,6 +879,7 @@ export default function ConversationScreen() {
         setDraft('');
 
         const now = nowISO();
+        // For first message in a new chat, create a local conversation id placeholder.
         const nextConversationId =
             currentConversation.conversationId ?? `conv_${Date.now()}`;
         const nextRunId = `run_${Date.now()}`;
@@ -902,6 +959,9 @@ export default function ConversationScreen() {
 
     }, [clearUserAckTimer, draft, runIsInProgress]);
 
+    // Role-based message renderer:
+    // - user => right aligned Card
+    // - assistant => left aligned plain text block (markdown optional)
     const renderMessage = useCallback(
         (message: UserMessage | AssistantMessage) => {
             if ( message.role === 'user' ) {
@@ -1028,6 +1088,9 @@ export default function ConversationScreen() {
                             size="sm"
                             style={styles.primaryActionButton}
                             variant={runIsInProgress ? 'destructive' : 'default'}
+                            // Button state machine:
+                            // - active run => Stop
+                            // - idle run => Send
                             onPress={runIsInProgress ? handleCancelRun : handleSendMessage}
                             disabled={runIsInProgress ? false : sendDisabled}
                         >
