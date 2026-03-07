@@ -15,7 +15,8 @@ import {
 } from "expo-image-picker";
 import { Camera, ImagePlus, Paperclip } from "lucide-react-native";
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from "react";
-import { FlatList, StyleSheet, TouchableOpacity } from "react-native";
+import { StyleSheet, TouchableOpacity } from "react-native";
+import { FlatList } from "react-native-gesture-handler";
 
 // Uploaded file data structure
 export interface UploadedFile {
@@ -323,48 +324,48 @@ export const UploadFiles = forwardRef<UploadFilesHandle, UploadFilesProps>(({dat
     return (
         <>
             <View style={{marginTop: 10}}>
-                    {uploadedFiles === null && uploadRequests.length === 0 ? (
-                        // Show skeleton only when there are no uploads in progress and uploaded files are still
-                        // loading.
-                        <Skeleton width={'100%'} height={60}/>
-                    ) : (
-                        // Show both uploading files and already uploaded files in a horizontal list.
-                        <FlatList
-                            style={{paddingBottom: 8}}
-                            horizontal={true}
-                            data={[
+                {uploadedFiles === null && uploadRequests.length === 0 ? (
+                    // Show skeleton only when there are no uploads in progress and uploaded files are still
+                    // loading.
+                    <Skeleton width={'100%'} height={60}/>
+                ) : (
+                    // Show both uploading files and already uploaded files in a horizontal list.
+                    <FlatList
+                        style={{paddingBottom: 8}}
+                        horizontal={true}
+                        data={[
+                            // uploading files
+                            ...uploadRequests.map(item => ({type: 'uploading' as const, item})),
+                            // already uploaded files
+                            ...(uploadedFiles ?? []).map(item => ({type: 'uploaded' as const, item}))
+                        ]}
+                        renderItem={({item}) =>
+                            item.type === 'uploading' ? (
                                 // uploading files
-                                ...uploadRequests.map(item => ({type: 'uploading' as const, item})),
+                                <FileUploadingCard
+                                    file={item.item}
+                                    onCancel={() => cancelUpload(item.item.id)}
+                                />
+                            ) : (
                                 // already uploaded files
-                                ...(uploadedFiles ?? []).map(item => ({type: 'uploaded' as const, item}))
-                            ]}
-                            renderItem={({item}) =>
-                                item.type === 'uploading' ? (
-                                    // uploading files
-                                    <FileUploadingCard
-                                        file={item.item}
-                                        onCancel={() => cancelUpload(item.item.id)}
-                                    />
-                                ) : (
-                                    // already uploaded files
-                                    <FileCard
-                                        filename={item.item.name}
-                                        onClick={() => deleteFile(item.item.id)}
-                                    />
-                                )
-                            }
-                            keyExtractor={(item) =>
-                                item.type === 'uploading'
-                                    ? `uploading-${item.item.id}`
-                                    : `uploaded-${item.item.id}`
-                            }
-                            ListEmptyComponent={
-                                <Text variant={'caption'}>No files uploaded yet.</Text>
-                            }
-                            ItemSeparatorComponent={props => <View style={{width: 10}} {...props}/>}
-                        />
-                    )}
-                </View>
+                                <FileCard
+                                    filename={item.item.name}
+                                    onClick={() => deleteFile(item.item.id)}
+                                />
+                            )
+                        }
+                        keyExtractor={(item) =>
+                            item.type === 'uploading'
+                                ? `uploading-${item.item.id}`
+                                : `uploaded-${item.item.id}`
+                        }
+                        ListEmptyComponent={
+                            <Text variant={'caption'}>No files uploaded yet.</Text>
+                        }
+                        ItemSeparatorComponent={props => <View style={{width: 10}} {...props}/>}
+                    />
+                )}
+            </View>
             <UIBottomSheet isVisible={isVisible} onClose={close} snapPoints={[0.30]}>
                 <View>
                     <TouchableOpacity style={styles.uploadMenu} onPress={() => menuChose('files')}>

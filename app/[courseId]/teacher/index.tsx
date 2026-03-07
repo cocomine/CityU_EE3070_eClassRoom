@@ -1,5 +1,6 @@
 import { StudentStatusCard } from '@/components/student-status-card';
 import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
 import { Col, Row } from '@/components/ui/grid';
 import { Icon } from "@/components/ui/icon";
 import { Separator } from "@/components/ui/separator";
@@ -15,12 +16,13 @@ import { TemperatureCard } from '@/components/weather/temperature-card';
 import { useColor } from "@/hooks/useColor";
 import { FILE_EXTENSIONS } from "@/utils/file-meta";
 import { wait } from "@/utils/wait";
-import BottomSheet, { BottomSheetScrollView, BottomSheetView } from "@gorhom/bottom-sheet";
+import BottomSheet, { BottomSheetBackdrop, BottomSheetBackdropProps } from "@gorhom/bottom-sheet";
+import { useHeaderHeight } from "@react-navigation/elements";
 import { useLocalSearchParams } from "expo-router";
 import { MessageCirclePlus, Upload } from "lucide-react-native";
-import { useCallback, useEffect, useRef, useState } from "react";
-import { RefreshControl, ScrollView, StyleSheet, useWindowDimensions } from "react-native";
-import { GestureHandlerRootView } from "react-native-gesture-handler";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { ScrollView, StyleSheet, useWindowDimensions } from "react-native";
+import { FlatList, GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 // Mock data for testing and development purposes
@@ -40,10 +42,10 @@ const FakeClassRoom: ClassRoomDataTeacher = {
 
 };
 const FakeUploadedFiles: UploadedFile[] = [
-    /*...FILE_EXTENSIONS.map((ext, index) => ({
-     id: String(index + 1),
-     name: `Sample.${ext}`
-     })),*/
+    ...FILE_EXTENSIONS.map((ext, index) => ({
+        id: String(index + 1),
+        name: `Sample.${ext}`
+    })),
     {
         id: String(FILE_EXTENSIONS.length + 1),
         name: 'README'
@@ -68,10 +70,35 @@ const FakeConversations: Conversation[] = [
         id: '3',
         title: 'Conversation 3',
         questionPreview: 'What are some good teaching strategies for this topic?'
+    },
+    {
+        id: '4',
+        title: 'Conversation 4',
+        questionPreview: 'What are some good teaching strategies for this topic?'
+    }, {
+        id: '5',
+        title: 'Conversation 5',
+        questionPreview: 'What are some good teaching strategies for this topic?'
+    }, {
+        id: '6',
+        title: 'Conversation 6',
+        questionPreview: 'What are some good teaching strategies for this topic?'
+    }, {
+        id: '7',
+        title: 'Conversation 7',
+        questionPreview: 'What are some good teaching strategies for this topic?'
+    }, {
+        id: '8',
+        title: 'Conversation 8',
+        questionPreview: 'What are some good teaching strategies for this topic?'
+    }, {
+        id: '9',
+        title: 'Conversation 9',
+        questionPreview: 'What are some good teaching strategies for this topic?'
     }
 ];
 
-//
+// Data structure for conversations displayed in the bottom sheet
 export interface Conversation {
     id: string;
     title: string;
@@ -226,10 +253,12 @@ function LLMBottomSheet() {
     const {courseId} = useLocalSearchParams<{ courseId: string }>();
     const bottomSheetBackgroundColor = useColor('card');
     const bottomSheetHandleColor = useColor('muted');
+    const conversationBorderColor = useColor('border');
     const [courseData, setCourseData] = useState<CourseDataTeacher>(defaultCourseData);
     const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[] | null>(null);
     const [conversations, setConversations] = useState<Conversation[] | null>(null);
     const [refreshing, setRefreshing] = useState(false);
+    const headerHeight = useHeaderHeight();
     const ref = useRef<UploadFilesHandle>(null);
 
     // Fetching course details and uploaded files from backend
@@ -264,16 +293,90 @@ function LLMBottomSheet() {
         loader().then();
     }, [loader]);
 
+    // Render function for each conversation item in the bottom sheet list
+    const renderConversationItem = useCallback(({item}: { item: Conversation }) => {
+        return (
+            <Card style={[styles.conversationCard, {borderColor: conversationBorderColor}]}>
+                <CardContent style={styles.conversationCardContent}>
+                    <Text variant={'body'} style={styles.conversationTitle}>
+                        {item.title}
+                    </Text>
+                    <Text variant={'caption'} numberOfLines={2}>
+                        {item.questionPreview}
+                    </Text>
+                </CardContent>
+            </Card>
+        );
+    }, [conversationBorderColor]);
+
+    // Render function for the header of the bottom sheet list, including uploaded files section and conversations
+    // section
+    const renderListHeader = useMemo(() => {
+        return (
+            <View>
+                {/* Uploaded files section */}
+                <View style={styles.sectionTitleContainer}>
+                    <Text variant={'title'}>Uploaded files</Text>
+                    <Button variant={'outline'} size={'sm'} onPress={() => ref.current?.open()}>
+                        <Icon name={Upload} size={14}/>
+                        <Text style={{fontSize: 14}}>Select files to upload</Text>
+                    </Button>
+                </View>
+                <UploadFiles data={uploadedFiles} ref={ref}/>
+                <Separator style={{marginVertical: 15}}/>
+                {/* Conversations section */}
+                <View style={[styles.sectionTitleContainer, {marginBottom: 10}]}>
+                    <Text variant={'title'}>Conversations</Text>
+                    <Button variant={'outline'} size={'sm'} onPress={() => {}}>
+                        <Icon name={MessageCirclePlus} size={14}/>
+                        <Text style={{fontSize: 14}}>New Conversation</Text>
+                    </Button>
+                </View>
+            </View>
+        );
+    }, [uploadedFiles]);
+
+    // Render function for when there are no conversations, showing either a loading state or an empty state message
+    const renderConversationEmpty = useMemo(() => {
+        if ( conversations === null ) {
+            return (
+                <View style={styles.conversationLoading}>
+                    <Skeleton width={'100%'} height={68}/>
+                    <View style={styles.conversationLoadingSpacer}/>
+                    <Skeleton width={'100%'} height={68}/>
+                </View>
+            );
+        }
+
+        return (
+            <Text variant={'caption'} style={styles.conversationEmpty}>
+                No conversations yet.
+            </Text>
+        );
+    }, [conversations]);
+
+    const renderBackdrop = useCallback((props: BottomSheetBackdropProps) => {
+        return <BottomSheetBackdrop
+            {...props}
+            pressBehavior={'close'}
+            enableTouchThrough={true}
+            appearsOnIndex={2}
+            disappearsOnIndex={1}
+            opacity={0.8}
+        />;
+    }, []);
+
     return (
         <BottomSheet
             snapPoints={[80, '60%', '100%']}
             backgroundStyle={{backgroundColor: bottomSheetBackgroundColor}}
             handleIndicatorStyle={{backgroundColor: bottomSheetHandleColor}}
             index={0}
+            topInset={headerHeight}
             enableDynamicSizing={false}
-            enableContentPanningGesture={false}
+            backdropComponent={renderBackdrop}
         >
-            <BottomSheetView style={styles.contentContainer}>
+            <View style={styles.headerContainer}>
                 <View style={styles.infoContainer}>
                     <View>
                         {courseData.title ? (
@@ -286,34 +389,22 @@ function LLMBottomSheet() {
                         <Text variant={'caption'}>ID: {courseId}</Text>
                     </View>
                 </View>
-                <Separator style={{marginVertical: 15}}/>
-                <BottomSheetScrollView
-                    style={{flex: 1}}
-                    refreshControl={
-                        <RefreshControl refreshing={refreshing} onRefresh={loader}/>}
-                    nestedScrollEnabled={true}
-                >
-                    {/* Uploaded files section */}
-                    <View style={styles.sectionTitleContainer}>
-                        <Text variant={'title'}>Uploaded files</Text>
-                        <Button variant={'outline'} size={'sm'} onPress={() => ref.current?.open()}>
-                            <Icon name={Upload} size={14}/>
-                            <Text style={{fontSize: 14}}>Select files to upload</Text>
-                        </Button>
-                    </View>
-                    <UploadFiles data={uploadedFiles} ref={ref}/>
-                    <Separator style={{marginVertical: 15}}/>
-                    <View style={styles.sectionTitleContainer}>
-                        <Text variant={'title'}>Conversations</Text>
-                        <Button variant={'outline'} size={'sm'} onPress={() => {}}>
-                            <Icon name={MessageCirclePlus} size={14}/>
-                            <Text style={{fontSize: 14}}>New Conversation</Text>
-                        </Button>
-                    </View>
-                    {//todo: conversations list
-                    }
-                </BottomSheetScrollView>
-            </BottomSheetView>
+            </View>
+            <Separator style={{marginTop: 15}}/>
+            <FlatList
+                data={conversations ?? []}
+                renderItem={renderConversationItem}
+                keyExtractor={(item: Conversation) => item.id}
+                onRefresh={loader}
+                refreshing={refreshing}
+                ItemSeparatorComponent={() => (
+                    <View style={styles.conversationItemSeparator}/>
+                )}
+                ListEmptyComponent={renderConversationEmpty}
+                ListHeaderComponent={renderListHeader}
+                contentContainerStyle={styles.listContentContainer}
+                style={styles.list}
+            />
         </BottomSheet>
     );
 }
@@ -333,20 +424,53 @@ const styles = StyleSheet.create({
         paddingHorizontal: 20,
         paddingBottom: 100
     },
-    contentContainer: {
-        flex: 1,
-        paddingHorizontal: 36
+    sheetContainer: {
+        flex: 1
+    },
+    headerContainer: {
+        paddingHorizontal: 36,
+        height: 41
+    },
+    list: {
+        flex: 1
+    },
+    listContentContainer: {
+        paddingHorizontal: 36,
+        paddingTop: 10,
+        paddingBottom: 20
     },
     infoContainer: {
-        height: 44,
         flexDirection: 'row',
         justifyContent: 'space-between',
-        alignItems: 'center'
+        alignItems: 'center',
+        flex: 1
     },
     sectionTitleContainer: {
         flexDirection: "row",
         alignItems: "center",
         gap: 10,
         justifyContent: 'space-between'
+    },
+    conversationCard: {
+        borderWidth: 1,
+        padding: 12
+    },
+    conversationCardContent: {
+        gap: 6
+    },
+    conversationTitle: {
+        fontWeight: '600'
+    },
+    conversationItemSeparator: {
+        height: 10
+    },
+    conversationLoading: {
+        marginTop: 10
+    },
+    conversationLoadingSpacer: {
+        height: 10
+    },
+    conversationEmpty: {
+        marginTop: 6
     }
 });
