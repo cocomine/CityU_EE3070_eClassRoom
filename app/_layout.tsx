@@ -15,10 +15,7 @@ export default function RootLayout() {
 
                     <Stack>
                         <Stack.Screen name="index" options={{headerShown: false}}/>
-                        <Stack.Screen name="student/index"
-                                      options={{headerBackButtonDisplayMode: 'minimal', title: "Student Terminal"}}/>
-                        <Stack.Screen name="teacher/index"
-                                      options={{headerBackButtonDisplayMode: 'minimal', title: "Teacher Terminal"}}/>
+                        <Stack.Screen name="[courseId]" options={{headerShown: false}}/>
                     </Stack>
 
                 <StatusBar style="auto"/>

@@ -1,10 +1,9 @@
-import {SafeAreaView} from "react-native-safe-area-context";
-import {View} from "@/components/ui/view";
-import {Text} from "@/components/ui/text";
-import {StyleSheet} from "react-native";
-import {Stack, useLocalSearchParams} from "expo-router";
-import {useEffect, useState} from "react";
-import { BottomSheet } from "@/components/ui/bottom-sheet";
+import { Text } from "@/components/ui/text";
+import { View } from "@/components/ui/view";
+import { useLocalSearchParams } from "expo-router";
+import { useEffect, useState } from "react";
+import { StyleSheet } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 const FakeCourse = {title: 'Fake Course'};
 

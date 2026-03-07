@@ -70,7 +70,7 @@ function TeacherBottomSheet({isVisible, onClose}: { isVisible: boolean, onClose:
     // when user click a course, navigate to teacher page with course id and close the bottom sheet
     const onClick = useCallback((courseId: string) => {
         console.log('Selected:', courseId);
-        router.navigate({pathname: '/teacher', params: {courseId}});
+        router.navigate({pathname: '/[courseId]/teacher', params: {courseId}});
         onClose();
     }, [onClose, router]);
 
@@ -104,7 +104,7 @@ function TeacherBottomSheet({isVisible, onClose}: { isVisible: boolean, onClose:
             } else {
                 setCourseList([{id: courseId, title: nativeEvent.text}]);
             }
-            router.navigate({pathname: '/teacher', params: {courseId}});
+            router.navigate({pathname: '/[courseId]/teacher', params: {courseId}});
             createNewCourseBottomSheet.close();
         } else {
             // course creation failed, show error message
@@ -245,7 +245,7 @@ function StudentBottomSheet({isVisible, onClose}: { isVisible: boolean, onClose:
 
         if ( valid ) {
             // course id is valid, navigate to student page
-            router.navigate({pathname: '/student', params: {courseId: value}});
+            router.navigate({pathname: '/[courseId]/student', params: {courseId: value}});
             setCourseId('');
             onClose();
         } else {
