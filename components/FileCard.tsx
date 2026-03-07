@@ -1,8 +1,8 @@
-import { UploadFileRequest } from "@/app/teacher";
 import { Card, CardContent } from "@/components/ui/card";
 import { Icon } from '@/components/ui/icon';
 import { Text } from "@/components/ui/text";
 import { View } from "@/components/ui/view";
+import { UploadFileRequest } from "@/components/UploadFiles";
 import { useColor } from "@/hooks/useColor";
 import { getFileMeta } from '@/utils/file-meta';
 import { X } from 'lucide-react-native';
