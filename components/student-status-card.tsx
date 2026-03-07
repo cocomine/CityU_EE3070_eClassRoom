@@ -8,6 +8,7 @@ import { User } from 'lucide-react-native';
 import React, { useMemo } from 'react';
 import { StyleSheet, ViewStyle } from 'react-native';
 
+// Each slot can be a positive status or null (unmonitored / no data).
 type StudentStatus = null | 'good' | 'attention';
 
 type StudentSlot = {
@@ -16,6 +17,7 @@ type StudentSlot = {
 };
 
 type StudentStatusCardProps = {
+    // slots === null => loading state, [] => empty message, otherwise render slots
     slots?: StudentSlot[] | null;
     title?: string;
     style?: ViewStyle;
@@ -27,6 +29,7 @@ export function StudentStatusCard(
         title = 'Student Status',
         style
     }: StudentStatusCardProps) {
+    // Theme-aware colors used for the three visual states.
     const goodColor = useColor('green');
     const attentionColor = useColor('orange');
     const emptyStroke = useColor('mutedForeground');
@@ -34,14 +37,17 @@ export function StudentStatusCard(
     const footerText = useColor('mutedForeground');
     const emptyMessage = useColor('mutedForeground');
 
+    // Null means loading; empty array means no sensors assigned.
     const isLoading = slots === null;
     const isEmpty = !isLoading && (!slots || slots.length === 0);
 
+    // Normalize slots to a predictable array for rendering.
     const normalizedSlots = useMemo(() => {
         if ( isLoading || isEmpty ) return [];
         return slots ?? [];
     }, [slots, isLoading, isEmpty]);
 
+    // Count each status for the footer summary.
     const {total, good, attention, unmonitored} = useMemo(() => {
         let goodCount = 0;
         let attentionCount = 0;
@@ -69,6 +75,7 @@ export function StudentStatusCard(
             <CardContent style={styles.content}>
                 {isLoading ? (
                     <View style={styles.circleWrap}>
+                        {/* Skeleton circles mimic the layout while data is loading. */}
                         {Array.from({length: 10}).map((_, index) => (
                             <Skeleton
                                 key={`student-skeleton-${index}`}
@@ -80,12 +87,14 @@ export function StudentStatusCard(
                         ))}
                     </View>
                 ) : isEmpty ? (
+                    /* Empty-state message when there are no sensors assigned. */
                     <Text variant="caption" style={[styles.emptyText, {color: emptyMessage}]}>
-                        o sensors are assigned to this classroom
+                        No sensors are assigned to this classroom
                     </Text>
                 ) : (
                     <View style={styles.circleWrap}>
                         {normalizedSlots.map((slot, index) => {
+                            // Empty slots are outlined; filled slots are colored.
                             const isEmptySlot = slot.status === null || slot.status === undefined;
                             const isGood = slot.status === 'good';
                             const fillColor = isGood ? goodColor : attentionColor;
