@@ -25,17 +25,12 @@ export default function RootLayout() {
             screenOptions={{
                 headerShown: true,
                 headerBackButtonDisplayMode: 'minimal',
-                headerLeft: renderBackButton
+                headerLeft: renderBackButton,
+                title: "Conversation"
             }}
         >
-            <Stack.Screen name="index"
-                          options={{
-                              title: "Conversation"
-                          }}/>
-            <Stack.Screen name="[conversationId]"
-                          options={{
-                              title: "Conversation"
-                          }}/>
+            <Stack.Screen name="index"/>
+            <Stack.Screen name="[conversationId]"/>
         </Stack>
     );
 }
