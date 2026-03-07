@@ -28,17 +28,13 @@ export default function RootLayout() {
                 headerLeft: renderBackButton
             }}
         >
-            <Stack.Screen name="student/index"
+            <Stack.Screen name="index"
                           options={{
-                              title: "Student Terminal"
+                              title: "Conversation"
                           }}/>
-            <Stack.Screen name="teacher/index"
+            <Stack.Screen name="[conversationId]"
                           options={{
-                              title: "Teacher Terminal"
-                          }}/>
-            <Stack.Screen name="teacher/conversation"
-                          options={{
-                              headerShown: false
+                              title: "Conversation"
                           }}/>
         </Stack>
     );

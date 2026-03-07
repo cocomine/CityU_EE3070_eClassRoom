@@ -17,10 +17,10 @@ import { FILE_EXTENSIONS } from "@/utils/file-meta";
 import { wait } from "@/utils/wait";
 import BottomSheet, { BottomSheetBackdrop, BottomSheetBackdropProps } from "@gorhom/bottom-sheet";
 import { useHeaderHeight } from "@react-navigation/elements";
-import { useLocalSearchParams } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import { ChevronRight, MessageCirclePlus, Upload } from "lucide-react-native";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ScrollView, StyleSheet, useWindowDimensions } from "react-native";
+import { ScrollView, StyleSheet, TouchableOpacity, useWindowDimensions } from "react-native";
 import { FlatList, GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaView } from "react-native-safe-area-context";
 
@@ -250,6 +250,7 @@ export default function Teacher() {
  */
 function LLMBottomSheet() {
     const {courseId} = useLocalSearchParams<{ courseId: string }>();
+    const router = useRouter();
     const bottomSheetBackgroundColor = useColor('card');
     const bottomSheetHandleColor = useColor('muted');
     const conversationBorderColor = useColor('border');
@@ -294,10 +295,31 @@ function LLMBottomSheet() {
         loader().then();
     }, [loader]);
 
+    // Handler for creating a new conversation, navigating to the conversation creation screen
+    const handleNewConversation = useCallback(() => {
+        if ( !courseId ) return;
+        router.push({
+            pathname: '/[courseId]/teacher/conversation',
+            params: {courseId}
+        });
+    }, [courseId, router]);
+
+    // Handler for opening an existing conversation, navigating to the conversation details screen
+    const handleOpenConversation = useCallback((conversationId: string) => {
+        if ( !courseId ) return;
+        router.push({
+            pathname: '/[courseId]/teacher/conversation/[conversationId]',
+            params: {courseId, conversationId}
+        });
+    }, [courseId, router]);
+
     // Render function for each conversation item in the bottom sheet list
     const renderConversationItem = useCallback(({item}: { item: Conversation }) => {
         return (
-            <View style={styles.conversationRow}>
+            <TouchableOpacity
+                style={styles.conversationRow}
+                onPress={() => handleOpenConversation(item.id)}
+            >
                 <View style={[styles.conversationAccent, {backgroundColor: conversationAccentColor}]}/>
                 <View style={styles.conversationText}>
                     <Text variant={'body'} style={styles.conversationTitle}>
@@ -308,9 +330,9 @@ function LLMBottomSheet() {
                     </Text>
                 </View>
                 <Icon name={ChevronRight} size={16} color={conversationChevronColor}/>
-            </View>
+            </TouchableOpacity>
         );
-    }, [conversationAccentColor, conversationChevronColor]);
+    }, [conversationAccentColor, conversationChevronColor, handleOpenConversation]);
 
     // Render function for the header of the bottom sheet list, including uploaded files section and conversations
     // section
@@ -330,14 +352,14 @@ function LLMBottomSheet() {
                 {/* Conversations section */}
                 <View style={[styles.sectionTitleContainer, {marginBottom: 10}]}>
                     <Text variant={'title'}>Conversations</Text>
-                    <Button variant={'outline'} size={'sm'} onPress={() => {}}>
+                    <Button variant={'outline'} size={'sm'} onPress={handleNewConversation}>
                         <Icon name={MessageCirclePlus} size={14}/>
                         <Text style={{fontSize: 14}}>New Conversation</Text>
                     </Button>
                 </View>
             </View>
         );
-    }, [uploadedFiles]);
+    }, [handleNewConversation, uploadedFiles]);
 
     // Render function for when there are no conversations, showing either a loading state or an empty state message
     const renderConversationEmpty = useMemo(() => {
@@ -462,6 +484,9 @@ const styles = StyleSheet.create({
         paddingVertical: 12,
         paddingHorizontal: 8,
         gap: 12
+    },
+    conversationRowPressed: {
+        opacity: 0.6
     },
     conversationAccent: {
         width: 3,
