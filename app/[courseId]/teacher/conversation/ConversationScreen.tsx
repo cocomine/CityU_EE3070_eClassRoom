@@ -6,6 +6,7 @@ import { useColor } from '@/hooks/useColor';
 import { useLocalSearchParams, useNavigation } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, TextInput } from 'react-native';
+import Markdown from 'react-native-markdown-display';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 // Hardcode this flag to enable/disable markdown rendering for assistant messages.
@@ -191,70 +192,56 @@ type AppError = {
     retryable?: boolean;
 };
 
-type InlineToken =
-    | { type: 'text'; value: string }
-    | { type: 'bold'; value: string }
-    | { type: 'code'; value: string };
-
+/**
+ * Returns the current timestamp as an ISO-8601 string.
+ *
+ * @returns Current time in ISO format.
+ */
 function nowISO() {
     return new Date().toISOString();
 }
 
+/**
+ * Type guard that narrows a conversation message to `AssistantMessage`.
+ *
+ * @param message Message union to inspect.
+ * @returns `true` when the message role is `assistant`.
+ */
 function isAssistantMessage(
     message: UserMessage | AssistantMessage
 ): message is AssistantMessage {
     return message.role === 'assistant';
 }
 
+/**
+ * Checks whether a run status represents an active in-progress generation state.
+ *
+ * @param status Run status to evaluate.
+ * @returns `true` when status is one of PENDING, THINKING, or STREAMING.
+ */
 function isRunInProgressStatus(status: RunStatus) {
     return RUN_STEPS_IN_PROGRESS.includes(status);
 }
 
-// Minimal inline markdown parser.
-// Supported syntaxes:
-// - **bold**
-// - `inline code`
-// Any other token is rendered as plain text.
-function parseInlineMarkdown(raw: string): InlineToken[] {
-    const tokenRegex = /(`[^`]+`|\*\*[^*]+\*\*)/g;
-    const tokens: InlineToken[] = [];
-    let cursor = 0;
-    let match: RegExpExecArray | null;
-
-    while ( (match = tokenRegex.exec(raw)) !== null ) {
-        if ( match.index > cursor ) {
-            tokens.push({type: 'text', value: raw.slice(cursor, match.index)});
-        }
-
-        const chunk = match[0];
-        if ( chunk.startsWith('**') && chunk.endsWith('**') ) {
-            tokens.push({type: 'bold', value: chunk.slice(2, -2)});
-        } else if ( chunk.startsWith('`') && chunk.endsWith('`') ) {
-            tokens.push({type: 'code', value: chunk.slice(1, -1)});
-        } else {
-            tokens.push({type: 'text', value: chunk});
-        }
-
-        cursor = match.index + chunk.length;
-    }
-
-    if ( cursor < raw.length ) {
-        tokens.push({type: 'text', value: raw.slice(cursor)});
-    }
-
-    return tokens;
-}
-
+/**
+ * Builds a short conversation title from the first user input.
+ *
+ * @param userInput Raw user input text.
+ * @returns Trimmed title capped at 36 characters with ellipsis when truncated.
+ */
 function buildConversationTitle(userInput: string) {
     const trimmed = userInput.trim();
     return trimmed.length <= 36 ? trimmed : `${trimmed.slice(0, 36)}...`;
 }
 
+/**
+ * Computes the next local message ID by taking the current max and adding one.
+ *
+ * @param messages Existing messages in the current conversation.
+ * @returns Next incremental local message ID, starting from 1.
+ */
 function getNextMessageLocalId(messages: (UserMessage | AssistantMessage)[]) {
     if ( messages.length === 0 ) return 1;
-    // Screen layout:
-    // - Top area: message history list
-    // - Bottom area: input composer with one primary action button
     return (
         messages.reduce(
             (max, message) => Math.max(max, message.messageIdLocal),
@@ -263,6 +250,12 @@ function getNextMessageLocalId(messages: (UserMessage | AssistantMessage)[]) {
     );
 }
 
+/**
+ * Generates mock markdown content for assistant replies during local simulation.
+ *
+ * @param userInput Current user prompt text.
+ * @returns Markdown string used as simulated assistant output.
+ */
 function buildMockAssistantReply(userInput: string) {
     return [
         `I received your message: **${userInput.trim()}**`,
@@ -276,6 +269,12 @@ function buildMockAssistantReply(userInput: string) {
     ].join('\n');
 }
 
+/**
+ * Determines whether a route conversation ID should be treated as an in-progress mock conversation.
+ *
+ * @param conversationId Conversation ID from route params.
+ * @returns `true` when the ID contains markers for running/active/stream state.
+ */
 function shouldOpenInProgressConversation(conversationId: string) {
     const lowerCaseConversationId = conversationId.toLowerCase();
     return (
@@ -316,151 +315,6 @@ function hydrateConversationTemplate(params: {
     } as Conversation;
 }
 
-function MarkdownAssistantMessage({
-                                      content,
-                                      textColor
-                                  }: {
-    content: string;
-    textColor: string;
-}) {
-    // Simple markdown renderer without external dependency.
-    // It intentionally supports only a small subset needed for conversation preview.
-    const lines = content.split('\n');
-    const blocks: React.ReactNode[] = [];
-    const codeFontFamily = Platform.select({
-        ios: 'Menlo',
-        android: 'monospace',
-        default: 'monospace'
-    });
-
-    let inCodeBlock = false;
-    let codeBuffer: string[] = [];
-    let nodeIndex = 0;
-
-    // Renders inline markdown tokens inside one line.
-    const renderInline = (line: string, keyPrefix: string) =>
-        parseInlineMarkdown(line).map((token, index) => {
-            if ( token.type === 'bold' ) {
-                return (
-                    <Text key={`${keyPrefix}-bold-${index}`} style={styles.inlineBold}>
-                        {token.value}
-                    </Text>
-                );
-            }
-
-            if ( token.type === 'code' ) {
-                return (
-                    <Text
-                        key={`${keyPrefix}-code-${index}`}
-                        style={[
-                            styles.inlineCode,
-                            {fontFamily: codeFontFamily, color: textColor}
-                        ]}
-                    >
-                        {token.value}
-                    </Text>
-                );
-            }
-
-            return <Text key={`${keyPrefix}-text-${index}`}>{token.value}</Text>;
-        });
-
-    // Flushes buffered fenced-code lines into one styled block node.
-    const flushCodeBlock = () => {
-        if ( codeBuffer.length === 0 ) return;
-
-        blocks.push(
-            <Text
-                key={`md-code-${nodeIndex}`}
-                style={[
-                    styles.codeBlock,
-                    {color: textColor, fontFamily: codeFontFamily}
-                ]}
-            >
-                {codeBuffer.join('\n')}
-            </Text>
-        );
-        nodeIndex += 1;
-        codeBuffer = [];
-    };
-
-    // Parses line-level markdown blocks:
-    // 1) fenced code
-    // 2) heading
-    // 3) list item
-    // 4) blank spacer
-    // 5) paragraph
-    lines.forEach((line) => {
-        if ( line.trim().startsWith('```') ) {
-            if ( inCodeBlock ) {
-                inCodeBlock = false;
-                flushCodeBlock();
-            } else {
-                inCodeBlock = true;
-            }
-            return;
-        }
-
-        if ( inCodeBlock ) {
-            codeBuffer.push(line);
-            return;
-        }
-
-        const headingMatch = line.match(/^(#{1,3})\s+(.*)$/);
-        if ( headingMatch ) {
-            const headingLevel = headingMatch[1].length;
-            const headingContent = headingMatch[2];
-            const headingStyle =
-                headingLevel === 1
-                    ? styles.markdownHeading1
-                    : headingLevel === 2
-                        ? styles.markdownHeading2
-                        : styles.markdownHeading3;
-
-            blocks.push(
-                <Text key={`md-heading-${nodeIndex}`} style={headingStyle}>
-                    {renderInline(headingContent, `heading-${nodeIndex}`)}
-                </Text>
-            );
-            nodeIndex += 1;
-            return;
-        }
-
-        if ( line.startsWith('- ') || line.startsWith('* ') ) {
-            const bulletText = line.slice(2);
-            blocks.push(
-                <View key={`md-bullet-${nodeIndex}`} style={styles.markdownBulletRow}>
-                    <Text style={styles.markdownBullet}>•</Text>
-                    <Text style={styles.markdownBulletText}>
-                        {renderInline(bulletText, `bullet-${nodeIndex}`)}
-                    </Text>
-                </View>
-            );
-            nodeIndex += 1;
-            return;
-        }
-
-        if ( line.trim().length === 0 ) {
-            blocks.push(<View key={`md-space-${nodeIndex}`} style={styles.mdSpacer}/>);
-            nodeIndex += 1;
-            return;
-        }
-
-        blocks.push(
-            <Text key={`md-paragraph-${nodeIndex}`} style={styles.markdownParagraph}>
-                {renderInline(line, `paragraph-${nodeIndex}`)}
-            </Text>
-        );
-        nodeIndex += 1;
-    });
-
-    if ( inCodeBlock ) {
-        flushCodeBlock();
-    }
-
-    return <View style={styles.markdownContainer}>{blocks}</View>;
-}
-
 /**
  * ConversationScreen is the main screen for displaying a conversation between a user and an assistant.
  * It retrieves the courseId and conversationId from the URL parameters and displays them.
@@ -480,6 +334,94 @@ export default function ConversationScreen() {
     const textColor = useColor('text');
     const mutedColor = useColor('textMuted');
     const dangerColor = useColor('red');
+    const codeFontFamily = Platform.select({
+        ios: 'Menlo',
+        android: 'monospace',
+        default: 'monospace'
+    });
+
+    // Markdown style map for react-native-markdown-display.
+    // We only override rules that are important for this chat layout.
+    const markdownStyles = useMemo<StyleSheet.NamedStyles<any>>(
+        () => ({
+            body: {
+                color: textColor,
+                fontSize: 16,
+                lineHeight: 22
+            },
+            paragraph: {
+                marginTop: 0,
+                marginBottom: 6,
+                flexWrap: 'wrap',
+                flexDirection: 'row',
+                alignItems: 'flex-start',
+                justifyContent: 'flex-start',
+                width: '100%'
+            },
+            heading1: {
+                color: textColor,
+                fontSize: 22,
+                lineHeight: 30,
+                fontWeight: '700'
+            },
+            heading2: {
+                color: textColor,
+                fontSize: 19,
+                lineHeight: 27,
+                fontWeight: '700'
+            },
+            heading3: {
+                color: textColor,
+                fontSize: 17,
+                lineHeight: 24,
+                fontWeight: '700'
+            },
+            list_item: {
+                alignItems: 'flex-start'
+            },
+            bullet_list_icon: {
+                color: textColor,
+                marginLeft: 0,
+                marginRight: 6
+            },
+            bullet_list_content: {
+                color: textColor,
+                lineHeight: 22
+            },
+            code_inline: {
+                color: textColor,
+                borderWidth: 0,
+                backgroundColor: 'rgba(120,120,128,0.18)',
+                borderRadius: 4,
+                paddingVertical: 1,
+                paddingHorizontal: 4,
+                fontFamily: codeFontFamily
+            },
+            code_block: {
+                color: textColor,
+                borderWidth: 0,
+                backgroundColor: 'rgba(120,120,128,0.16)',
+                borderRadius: 8,
+                paddingVertical: 8,
+                paddingHorizontal: 10,
+                fontFamily: codeFontFamily
+            },
+            fence: {
+                color: textColor,
+                borderWidth: 0,
+                backgroundColor: 'rgba(120,120,128,0.16)',
+                borderRadius: 8,
+                paddingVertical: 8,
+                paddingHorizontal: 10,
+                fontFamily: codeFontFamily
+            },
+            link: {
+                color: textColor,
+                textDecorationLine: 'underline'
+            }
+        }),
+        [codeFontFamily, textColor]
+    );
 
     // Screen-level state: conversation payload, input draft, and temporary UI error.
     const [conversation, setConversation] = useState<Conversation | null>(null);
@@ -1000,7 +942,9 @@ export default function ConversationScreen() {
                     style={styles.assistantMessageContainer}
                 >
                     {ENABLE_ASSISTANT_MARKDOWN ? (
-                        <MarkdownAssistantMessage content={assistantText} textColor={textColor}/>
+                        <Markdown style={markdownStyles}>
+                            {assistantText}
+                        </Markdown>
                     ) : (
                         <Text style={styles.assistantMessageText}>{assistantText}</Text>
                     )}
@@ -1019,7 +963,7 @@ export default function ConversationScreen() {
                 </View>
             );
         },
-        [dangerColor, mutedColor, textColor]
+        [dangerColor, markdownStyles, mutedColor]
     );
 
     return (
@@ -1180,57 +1124,5 @@ const styles = StyleSheet.create({
     primaryActionButton: {
         height: 38,
         paddingHorizontal: 14
-    },
-    markdownContainer: {
-        width: '100%',
-        gap: 6
-    },
-    markdownHeading1: {
-        fontSize: 22,
-        lineHeight: 30,
-        fontWeight: '700'
-    },
-    markdownHeading2: {
-        fontSize: 19,
-        lineHeight: 27,
-        fontWeight: '700'
-    },
-    markdownHeading3: {
-        fontSize: 17,
-        lineHeight: 24,
-        fontWeight: '700'
-    },
-    markdownParagraph: {
-        lineHeight: 22
-    },
-    markdownBulletRow: {
-        flexDirection: 'row',
-        alignItems: 'flex-start'
-    },
-    markdownBullet: {
-        lineHeight: 22,
-        marginRight: 6
-    },
-    markdownBulletText: {
-        flex: 1,
-        lineHeight: 22
-    },
-    inlineBold: {
-        fontWeight: '700'
-    },
-    inlineCode: {
-        borderRadius: 4,
-        backgroundColor: 'rgba(120,120,128,0.18)',
-        paddingHorizontal: 4
-    },
-    codeBlock: {
-        borderRadius: 8,
-        backgroundColor: 'rgba(120,120,128,0.16)',
-        lineHeight: 20,
-        paddingHorizontal: 10,
-        paddingVertical: 8
-    },
-    mdSpacer: {
-        height: 4
     }
 });
