@@ -1,31 +1,12 @@
 import { Text } from '@/components/ui/text';
 import { View } from '@/components/ui/view';
-import { useKeyboardHeight } from '@/hooks/useKeyboardHeight'; // Make sure this path is correct
 import { useColor } from '@/hooks/useColor';
+import { useKeyboardHeight } from '@/hooks/useKeyboardHeight'; // Make sure this path is correct
 import { BORDER_RADIUS } from '@/theme/globals';
 import React, { useEffect } from 'react';
-import {
-  Dimensions,
-  Modal,
-  ScrollView,
-  TouchableWithoutFeedback,
-  ViewStyle,
-} from 'react-native';
-import {
-  Gesture,
-  GestureDetector,
-  GestureHandlerRootView,
-} from 'react-native-gesture-handler';
-import Animated, {
-  runOnJS,
-  useAnimatedStyle,
-  useSharedValue,
-  withSpring,
-  withTiming,
-} from 'react-native-reanimated';
-
-const { height: SCREEN_HEIGHT } = Dimensions.get('window');
-const MAX_TRANSLATE_Y = -SCREEN_HEIGHT + 50;
+import { Modal, ScrollView, TouchableWithoutFeedback, useWindowDimensions, ViewStyle } from 'react-native';
+import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler';
+import Animated, { runOnJS, useAnimatedStyle, useSharedValue, withSpring, withTiming } from 'react-native-reanimated';
 
 type BottomSheetContentProps = {
   children: React.ReactNode;
@@ -34,6 +15,7 @@ type BottomSheetContentProps = {
   rBottomSheetStyle: any;
   cardColor: string;
   mutedColor: string;
+  screenHeight: number;
   onHandlePress?: () => void;
 };
 
@@ -46,16 +28,17 @@ const BottomSheetContent = ({
   rBottomSheetStyle,
   cardColor,
   mutedColor,
+  screenHeight,
   onHandlePress,
 }: BottomSheetContentProps) => {
   return (
     <Animated.View
       style={[
         {
-          height: SCREEN_HEIGHT,
+          height: screenHeight,
           width: '100%',
           position: 'absolute',
-          top: SCREEN_HEIGHT,
+          top: screenHeight,
           backgroundColor: cardColor,
           borderTopLeftRadius: BORDER_RADIUS,
           borderTopRightRadius: BORDER_RADIUS,
@@ -136,6 +119,7 @@ export function BottomSheet({
   const cardColor = useColor('card');
   const mutedColor = useColor('muted');
   const { keyboardHeight, isKeyboardVisible } = useKeyboardHeight();
+  const { height: screenHeight } = useWindowDimensions();
 
   const translateY = useSharedValue(0);
   const context = useSharedValue({ y: 0 });
@@ -144,21 +128,27 @@ export function BottomSheet({
   // Shared value to hold keyboard height for use in worklets
   const keyboardHeightSV = useSharedValue(0);
 
-  const snapPointsHeights = snapPoints.map((point) => -SCREEN_HEIGHT * point);
+  const snapPointsHeights = React.useMemo(
+    () => snapPoints.map((point) => -screenHeight * point),
+    [snapPoints, screenHeight],
+  );
   const defaultHeight = snapPointsHeights[0];
+  const maxTranslateY = -screenHeight + 50;
 
   const [modalVisible, setModalVisible] = React.useState(false);
 
   // Effect to handle opening and closing the bottom sheet
   useEffect(() => {
     if (isVisible) {
-      setModalVisible(true);
-      translateY.value = withSpring(defaultHeight, {
-        damping: 50,
-        stiffness: 400,
-      });
-      opacity.value = withTiming(1, { duration: 300 });
-      currentSnapIndex.value = 0;
+      if (!modalVisible) {
+        setModalVisible(true);
+        translateY.value = withSpring(defaultHeight, {
+          damping: 50,
+          stiffness: 400,
+        });
+        opacity.value = withTiming(1, { duration: 300 });
+        currentSnapIndex.value = 0;
+      }
     } else {
       translateY.value = withSpring(0, { damping: 50, stiffness: 400 });
       opacity.value = withTiming(0, { duration: 300 }, (finished) => {
@@ -167,7 +157,7 @@ export function BottomSheet({
         }
       });
     }
-  }, [isVisible, defaultHeight]);
+  }, [isVisible, modalVisible, defaultHeight]);
 
   // Function to animate the sheet to a specific destination
   const scrollTo = (destination: number) => {
@@ -194,7 +184,7 @@ export function BottomSheet({
       }
       scrollTo(destination);
     }
-  }, [keyboardHeight, isKeyboardVisible, isVisible]);
+  }, [keyboardHeight, isKeyboardVisible, isVisible, snapPointsHeights]);
   // --- END: NEW KEYBOARD HANDLING LOGIC ---
 
   const findClosestSnapPoint = (currentY: number) => {
@@ -242,7 +232,7 @@ export function BottomSheet({
     })
     .onUpdate((event) => {
       const newY = context.value.y + event.translationY;
-      if (newY <= 0 && newY >= MAX_TRANSLATE_Y) {
+      if (newY <= 0 && newY >= maxTranslateY) {
         translateY.value = newY;
       }
     })
@@ -250,7 +240,7 @@ export function BottomSheet({
       const currentY = translateY.value;
       const velocity = event.velocityY;
 
-      if (velocity > 500 && currentY > -SCREEN_HEIGHT * 0.2) {
+      if (velocity > 500 && currentY > -screenHeight * 0.2) {
         animateClose();
         return;
       }
@@ -300,25 +290,25 @@ export function BottomSheet({
 
           {disablePanGesture ? (
             <BottomSheetContent
-              children={children}
               title={title}
               style={style}
               rBottomSheetStyle={rBottomSheetStyle}
               cardColor={cardColor}
               mutedColor={mutedColor}
+              screenHeight={screenHeight}
               onHandlePress={() => runOnJS(handlePress)()}
-            />
+            >{children}</BottomSheetContent>
           ) : (
             <GestureDetector gesture={gesture}>
               <BottomSheetContent
-                children={children}
                 title={title}
                 style={style}
                 rBottomSheetStyle={rBottomSheetStyle}
                 cardColor={cardColor}
                 mutedColor={mutedColor}
+                screenHeight={screenHeight}
                 onHandlePress={() => runOnJS(handlePress)()}
-              />
+              >{children}</BottomSheetContent>
             </GestureDetector>
           )}
         </Animated.View>
