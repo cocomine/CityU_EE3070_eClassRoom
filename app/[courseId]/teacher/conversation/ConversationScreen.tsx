@@ -55,6 +55,37 @@ const MOCK_MARKDOWN_TEST_REPLY = [
 
 const RUN_STEPS_IN_PROGRESS: RunStatus[] = ['PENDING', 'THINKING', 'STREAMING'];
 
+/**
+ * TODO(BE-INTEGRATION): Replace local mock/timer logic with real backend integration.
+ *
+ * Checklist:
+ * 1) Conversation bootstrap (this screen):
+ *    - When `conversationId` exists, fetch history:
+ *      GET /v1/subjects/:subjectId/messages/:conversationId
+ *    - When `conversationId` does not exist, keep local empty conversation state until first send.
+ *
+ * 2) Sending user message:
+ *    - First message in new chat:
+ *      POST /v1/subjects/:subjectId/messages
+ *    - Existing conversation:
+ *      POST /v1/subjects/:subjectId/messages/:conversationId
+ *    - Use server response to set/confirm: conversationId, runId, message IDs, timestamps, statuses.
+ *
+ * 3) Assistant streaming:
+ *    - Replace `startRunLifecycle` timer simulation with SSE:
+ *      GET /v1/runs/:runId/stream
+ *    - Map stream events into status/content transitions:
+ *      PENDING -> THINKING -> STREAMING -> DONE/ERROR/CANCELLED.
+ *
+ * 4) Cancel:
+ *    - Before local cancel completion, call:
+ *      POST /v1/runs/:runId/cancel
+ *    - Reconcile local state with cancel response/final SSE event.
+ *
+ * 5) Conversation list (handled by parent/bottom-sheet screen):
+ *    - GET /v1/subjects/:subjectId/messages
+ *    - This screen should only consume selected conversationId from route.
+ */
 // UI labels used under assistant messages to explain current run state.
 const RUN_STATUS_LABEL: Record<RunStatus, string> = {
     PENDING: 'Queued...',
@@ -76,6 +107,7 @@ const USER_MSG_STATUS_LABEL: Partial<Record<UserMsgStatus, string>> = {
 };
 
 // Final response used by the "old conversation with unfinished run" simulation.
+// TODO(BE-INTEGRATION): Remove mock assistant target once SSE stream is wired.
 const FakeStreamingFinalReply = [
     'Sure, I can help you create a lesson plan.',
     '',
@@ -88,6 +120,7 @@ const FakeStreamingFinalReply = [
 ].join('\n');
 
 // New conversation template
+// TODO(BE-INTEGRATION): Keep only as local initial UI state before first POST succeeds.
 const DefaultConversation: Conversation = {
     courseId: '123456',
     conversationId: null,
@@ -131,6 +164,7 @@ const FakeOldConversations: Conversation = {
 };
 
 // Mock conversation representing "opened an existing chat while assistant is still streaming".
+// TODO(BE-INTEGRATION): Remove mock fixture and read unfinished run from history payload.
 const FakeOldConversationInProgress: Conversation = {
     courseId: '123456',
     conversationId: 'RUNNING_UUID',
@@ -615,6 +649,8 @@ export default function ConversationScreen() {
 
     // Starts or resumes assistant run lifecycle for a specific runId.
     // State progression: PENDING -> THINKING -> STREAMING -> DONE (or CANCELLED/ERROR).
+    // TODO(BE-INTEGRATION): Replace this entire timer-driven lifecycle with SSE consumer from
+    // GET /v1/runs/:runId/stream and map server events directly into message updates.
     const startRunLifecycle = useCallback(
         (runId: string) => {
             clearRunTimers();
@@ -770,6 +806,9 @@ export default function ConversationScreen() {
     // - new chat when conversationId is absent
     // - old chat history when conversationId exists
     // - old unfinished run when conversationId matches running markers
+    // TODO(BE-INTEGRATION): Replace this mock branch with:
+    // - GET /v1/subjects/:subjectId/messages/:conversationId (history)
+    // and hydrate `conversation`, `messages`, `activeRunId` from server payload.
     useEffect(() => {
         let active = true;
         setLoadingConversation(true);
@@ -868,6 +907,7 @@ export default function ConversationScreen() {
         !conversation || loadingConversation || draft.trim().length === 0;
 
     // Cancels currently active assistant run.
+    // TODO(BE-INTEGRATION): call POST /v1/runs/:runId/cancel before finalizing local status.
     const handleCancelRun = useCallback(() => {
         const runId = conversationRef.current?.activeRunId;
         if ( !runId ) return;
@@ -881,6 +921,10 @@ export default function ConversationScreen() {
     // 2) append local user + assistant placeholder messages
     // 3) ACK user message (SENDING -> SENT)
     // 4) run lifecycle starts via effect once activeRunId is present in state
+    // TODO(BE-INTEGRATION):
+    // - first message -> POST /v1/subjects/:subjectId/messages
+    // - existing conversation -> POST /v1/subjects/:subjectId/messages/:conversationId
+    // Use response IDs/status to replace local placeholders and remove ACK timeout simulation.
     const handleSendMessage = useCallback(() => {
         const trimmedMessage = draft.trim();
         if ( !trimmedMessage ) return;
