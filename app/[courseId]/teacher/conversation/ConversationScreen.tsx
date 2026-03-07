@@ -15,7 +15,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 // Hardcode this flag to enable/disable markdown rendering for assistant messages.
 const ENABLE_ASSISTANT_MARKDOWN = true;
 // Hardcode this flag to force richer markdown test output in mock assistant replies.
-const ENABLE_MARKDOWN_TEST_SAMPLE = true;
+const ENABLE_MARKDOWN_TEST_SAMPLE = false;
 
 const MOCK_MARKDOWN_TEST_REPLY = [
     '## Markdown Test Pack',
@@ -802,53 +802,56 @@ export default function ConversationScreen() {
     }, [conversation]);
 
     // Fetches conversation data when route params change.
-    // This currently uses local mocks but mirrors future backend behavior:
-    // - new chat when conversationId is absent
-    // - old chat history when conversationId exists
-    // - old unfinished run when conversationId matches running markers
-    // TODO(BE-INTEGRATION): Replace this mock branch with:
+    // Current behavior:
+    // - new chat: load DefaultConversation immediately
+    // - old chat: keep timeout to simulate network fetch
+    // TODO(BE-INTEGRATION): Replace old chat timeout branch with:
     // - GET /v1/subjects/:subjectId/messages/:conversationId (history)
     // and hydrate `conversation`, `messages`, `activeRunId` from server payload.
     useEffect(() => {
         let active = true;
-        setLoadingConversation(true);
         setComposerError(null);
         setDraft('');
         clearRunTimers();
         clearUserAckTimer();
 
+        // New conversation path: no simulated fetch delay.
+        if ( !conversationId ) {
+            const nextConversation = hydrateConversationTemplate({
+                template: DefaultConversation,
+                conversationId: null,
+                courseId
+            });
+
+            setConversation(nextConversation);
+            setLoadingConversation(false);
+            return () => {
+                active = false;
+            };
+        }
+
+        // Existing conversation path: keep timeout to simulate backend fetch latency.
+        setLoadingConversation(true);
         const loadingTimer = setTimeout(() => {
             if ( !active ) return;
 
-            let nextConversation: Conversation;
+            const template = shouldOpenInProgressConversation(conversationId)
+                ? FakeOldConversationInProgress
+                : FakeOldConversations;
 
-            if ( conversationId ) {
-                // Existing conversation path.
-                const template = shouldOpenInProgressConversation(conversationId)
-                    ? FakeOldConversationInProgress
-                    : FakeOldConversations;
+            const nextConversation = hydrateConversationTemplate({
+                template,
+                conversationId,
+                courseId
+            });
 
-                nextConversation = hydrateConversationTemplate({
-                    template,
-                    conversationId,
-                    courseId
-                });
-
-                if (
-                    nextConversation.activeRunId &&
-                    shouldOpenInProgressConversation(conversationId)
-                ) {
-                    // Register stream target so reopened streaming run can continue.
-                    runTargetByRunIdRef.current[nextConversation.activeRunId] =
-                        FakeStreamingFinalReply;
-                }
-            } else {
-                // New conversation path.
-                nextConversation = hydrateConversationTemplate({
-                    template: DefaultConversation,
-                    conversationId: null,
-                    courseId
-                });
+            if (
+                nextConversation.activeRunId &&
+                shouldOpenInProgressConversation(conversationId)
+            ) {
+                // Register stream target so reopened streaming run can continue.
+                runTargetByRunIdRef.current[nextConversation.activeRunId] =
+                    FakeStreamingFinalReply;
             }
 
             setConversation(nextConversation);
