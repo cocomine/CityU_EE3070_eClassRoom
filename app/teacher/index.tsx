@@ -1,4 +1,5 @@
 import { FileCard, FileUploadingCard } from "@/components/FileCard";
+import { StudentStatusCard } from '@/components/student-status-card';
 import { showErrorAlert } from "@/components/ui/alert";
 import { BottomSheet as UIBottomSheet, useBottomSheet } from '@/components/ui/bottom-sheet';
 import { Button } from "@/components/ui/button";
@@ -37,7 +38,15 @@ const FakeClassRoom: ClassRoomDataTeacher = {
     co2: 500,
     temperature: 22,
     humidity: 80,
-    light: 500
+    light: 500,
+    studentStatus: [{
+        label: 1, status: 'good'
+    }, {
+        label: 2, status: 'attention'
+    }, ...(new Array(28).fill(0).map((_, i) => ({
+        label: i+2, status: null
+    })))]
+
 };
 const FakeUploadedFiles: UploadedFile[] = [
     /*...FILE_EXTENSIONS.map((ext, index) => ({
@@ -87,7 +96,14 @@ export interface ClassRoomDataTeacher {
     temperature: number | null;
     humidity: number | null;
     light: number | null;
+    studentStatus: StudentStatus[] | null;
 }
+
+// Student status data structure for each student slot in the classroom
+export type StudentStatus = {
+    label: number | string,
+    status: null | 'good' | 'attention'
+};
 
 // Weather data structure from data.weather.gov.hk API
 export interface WeatherGovData {
@@ -106,7 +122,8 @@ const defaultClassRoomData: ClassRoomDataTeacher = {
     co2: null,
     temperature: null,
     humidity: null,
-    light: null
+    light: null,
+    studentStatus: null
 };
 
 // Default values for weather data while loading
@@ -195,6 +212,9 @@ export default function Teacher() {
                         </Col>
                         <Col span={span}>
                             <Co2CardGauge value={classRoomData.co2} min={350} max={2000}/>
+                        </Col>
+                        <Col span={span * 2}>
+                            <StudentStatusCard slots={classRoomData.studentStatus}/>
                         </Col>
                     </Row>
                 </ScrollView>
