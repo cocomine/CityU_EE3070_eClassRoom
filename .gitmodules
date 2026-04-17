@@ -1,0 +1,7 @@
+[submodule "CityU_EE3070_eClassRoom_app"]
+	path = CityU_EE3070_eClassRoom_app
+	url = https://github.com/cocomine/CityU_EE3070_eClassRoom_app.git
+
+[submodule "CityU_EE3070_eClassRoom_server"]
+	path = CityU_EE3070_eClassRoom_server
+	url = https://github.com/cocomine/CityU_EE3070_eClassRoom_server.git
