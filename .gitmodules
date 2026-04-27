@@ -5,3 +5,7 @@
 [submodule "CityU_EE3070_eClassRoom_server"]
 	path = CityU_EE3070_eClassRoom_server
 	url = https://github.com/cocomine/CityU_EE3070_eClassRoom_server.git
+
+[submodule "CityU_EE3070_eClassRoom_ESP32"]
+	path = CityU_EE3070_eClassRoom_ESP32
+	url = https://github.com/ProHandsomeGod/EE3070-TGAM.git
