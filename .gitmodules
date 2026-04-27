@@ -8,3 +8,6 @@
 [submodule "CityU_EE3070_eClassRoom_ESP32"]
 	path = CityU_EE3070_eClassRoom_ESP32
 	url = https://github.com/ProHandsomeGod/EE3070-TGAM
+[submodule "CityU_EE3070_eClassRoom_Arduino"]
+	path = CityU_EE3070_eClassRoom_Arduino
+	url = https://github.com/Spongexing/CityU_EE3070_eClassRoom_xing

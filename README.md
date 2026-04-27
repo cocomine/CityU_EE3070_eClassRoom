@@ -20,13 +20,35 @@ The actual implementation is stored in the following submodules:
   - GitHub: <https://github.com/cocomine/CityU_EE3070_eClassRoom_server.git>
   - Role: backend APIs, storage, async task processing, and AI workflow integration
 
+- `CityU_EE3070_eClassRoom_Arduino`
+  - GitHub: <https://github.com/Spongexing/CityU_EE3070_eClassRoom_xing>
+  - Role: classroom environment sensor acquisition and preprocessing
+
 - `CityU_EE3070_eClassRoom_ESP32`
   - GitHub: <https://github.com/ProHandsomeGod/EE3070-TGAM>
   - Role: ESP32-side biosignal acquisition and preprocessing for student status monitoring
 
+## Arduino Module
+
+The Arduino module is the environmental sensing node for the classroom-control pipeline. It collects classroom sensor values, applies basic filtering and calibration, and forwards the processed readings to the next stage.
+
+Main responsibilities:
+
+- read indoor light data from the PGM5539 sensor
+- read outside light data from an analog light input
+- read temperature and humidity from the DHT11 sensor
+- read CO2 values from the serial CO2 module
+- apply temperature offset calibration and exponential smoothing
+- output filtered sensor values over serial in CSV form
+
+Current contents in `CityU_EE3070_eClassRoom_Arduino` include:
+
+- `EE3070_Arduino.ino`
+  - main Arduino sketch for classroom environment sensing
+
 ## ESP32 Module
 
-Based on the project report, the ESP32 module is part of the student status monitoring pipeline. It is responsible for collecting and preprocessing signals before forwarding structured data to the FPGA / PYNQ-Z2 layer.
+The ESP32 module is part of the student status monitoring pipeline. It is responsible for collecting and preprocessing signals before forwarding structured data to the FPGA / PYNQ-Z2 layer.
 
 Main responsibilities:
 
@@ -51,6 +73,11 @@ Current contents in `CityU_EE3070_eClassRoom_ESP32` include:
 The current project structure follows this high-level flow:
 
 `Arduino sensors -> ESP32 -> FPGA / PYNQ-Z2 -> cloud server -> application`
+
+In the environment-monitoring path, the Arduino module processes:
+
+- light, temperature, humidity, and CO2 readings
+- basic calibration and smoothing before serial output
 
 In the student-monitoring path, the ESP32 processes:
 
@@ -79,4 +106,5 @@ This repository is mainly an index and container for the subprojects. Setup, bui
 
 - app: `CityU_EE3070_eClassRoom_app/README.md`
 - server: `CityU_EE3070_eClassRoom_server/README.md`
+- Arduino sensor node: inspect `CityU_EE3070_eClassRoom_Arduino/`
 - ESP32 firmware and experiments: inspect the files under `CityU_EE3070_eClassRoom_ESP32/`
