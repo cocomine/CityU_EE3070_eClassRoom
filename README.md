@@ -28,6 +28,10 @@ The actual implementation is stored in the following submodules:
   - GitHub: <https://github.com/ProHandsomeGod/EE3070-TGAM>
   - Role: ESP32-side biosignal acquisition and preprocessing for student status monitoring
 
+- `CityU_EE3070_eClassRoom_PYNQ`
+  - GitHub: <https://github.com/Ivanhihi/EE3070-PYNQ-Z2-part>
+  - Role: packet analysis, classroom control, actuator execution, and upstream data upload
+
 ## Arduino Module
 
 The Arduino module is the environmental sensing node for the classroom-control pipeline. It collects classroom sensor values, applies basic filtering and calibration, and forwards the processed readings to the next stage.
@@ -68,6 +72,27 @@ Current contents in `CityU_EE3070_eClassRoom_ESP32` include:
 - `func2-v3.drawio`
   - diagram source related to Function 2
 
+## PYNQ Module
+
+The PYNQ module is the central processing and control node between the edge devices and the cloud-facing part of the system. It receives packets from the ESP32, validates and analyzes the data, decides control strategies, drives classroom actuators, and can upload summarized results upstream.
+
+Main responsibilities:
+
+- read and decode serial packets from the ESP32
+- validate packet structure, length, footer, and CRC
+- analyze EEG and heart-rate data into attention and stress indicators
+- use the PYNQ overlay when available, with software fallback when hardware features are unavailable
+- control classroom outputs such as RGB lighting, fan, cooler, exhaust, and window servo
+- apply smoothed strategy outputs instead of abrupt actuator changes
+- upload non-raw summarized data to the VPS / server side
+
+Current contents in `CityU_EE3070_eClassRoom_PYNQ` include:
+
+- `EE3070 Final-2.ipynb`
+  - main PYNQ notebook for packet handling, analysis, control, and upload flow
+- `README.md`
+  - short module-level description
+
 ## System Data Flow
 
 The current project structure follows this high-level flow:
@@ -84,7 +109,14 @@ In the student-monitoring path, the ESP32 processes:
 - TGAM brainwave raw data into EEG band powers
 - HW827 pulse data into heart-rate values
 
-Those processed results are then forwarded for further analysis and display in the rest of the system.
+In the control and analysis path, the PYNQ module processes:
+
+- incoming sensor and biosignal packets from the ESP32
+- attention and stress estimation
+- environment-control decisions for lighting, fan, cooler, exhaust, and window outputs
+- summarized upload data for the upstream server
+
+Those processed results are then forwarded for further analysis, storage, control execution, and display in the rest of the system.
 
 ## Clone Instructions
 
@@ -108,3 +140,4 @@ This repository is mainly an index and container for the subprojects. Setup, bui
 - server: `CityU_EE3070_eClassRoom_server/README.md`
 - Arduino sensor node: inspect `CityU_EE3070_eClassRoom_Arduino/`
 - ESP32 firmware and experiments: inspect the files under `CityU_EE3070_eClassRoom_ESP32/`
+- PYNQ processing and control notebook: inspect `CityU_EE3070_eClassRoom_PYNQ/`

@@ -11,3 +11,6 @@
 [submodule "CityU_EE3070_eClassRoom_Arduino"]
 	path = CityU_EE3070_eClassRoom_Arduino
 	url = https://github.com/Spongexing/CityU_EE3070_eClassRoom_xing
+[submodule "CityU_EE3070_eClassRoom_PYNQ"]
+	path = CityU_EE3070_eClassRoom_PYNQ
+	url = https://github.com/Ivanhihi/EE3070-PYNQ-Z2-part
