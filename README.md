@@ -8,6 +8,9 @@ The overall project is a smart classroom system with three main functions:
 - student status monitoring with biosignal sensing
 - AI-assisted learning result testing
 
+## Demo Video
+https://youtu.be/LLQR1Onfj7M
+
 ## Repository Structure
 
 The actual implementation is stored in the following submodules:
